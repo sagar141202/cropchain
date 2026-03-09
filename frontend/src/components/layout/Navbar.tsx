@@ -2,10 +2,11 @@
 import Link from "next/link";
 import { useAuthStore } from "@/store/authStore";
 import ThemeToggle from "@/components/ui/ThemeToggle";
+import NotificationCenter from "@/components/ui/NotificationCenter";
 import { Leaf } from "lucide-react";
 
 export default function Navbar() {
-  const { isAuthenticated, user } = useAuthStore();
+  const { isAuthenticated } = useAuthStore();
   return (
     <nav style={{
       position: "sticky", top: 0, zIndex: 50,
@@ -24,6 +25,7 @@ export default function Navbar() {
           </span>
         </Link>
         <div className="flex items-center gap-2">
+          {isAuthenticated && <NotificationCenter />}
           <ThemeToggle />
           {!isAuthenticated && (
             <Link href="/login">
