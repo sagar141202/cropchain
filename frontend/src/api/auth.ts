@@ -1,26 +1,19 @@
-import { apiClient } from "./client";
+import client from "./client";
 
 export const authAPI = {
-  register: async (data: {
+  login: (email: string, password: string) =>
+    client.post("/auth/login", { email, password }).then(r => r.data),
+
+  register: (data: {
     name: string;
     email: string;
     password: string;
     role: string;
-    language?: string;
     phone?: string;
     state?: string;
-  }) => {
-    const res = await apiClient.post("/auth/register", data);
-    return res.data;
-  },
+    language?: string;
+  }) => client.post("/auth/register", data).then(r => r.data),
 
-  login: async (email: string, password: string) => {
-    const res = await apiClient.post("/auth/login", { email, password });
-    return res.data;
-  },
-
-  refresh: async (refreshToken: string) => {
-    const res = await apiClient.post("/auth/refresh", { refresh_token: refreshToken });
-    return res.data;
-  },
+  refresh: (refresh_token: string) =>
+    client.post("/auth/refresh", { refresh_token }).then(r => r.data),
 };

@@ -1,26 +1,15 @@
-import { apiClient } from "./client";
+import client from "./client";
 
 export const investorAPI = {
-  browseProposals: async () => {
-    const res = await apiClient.get("/investor/proposals");
-    return res.data;
-  },
+  browseProposals: () =>
+    client.get("/investor/proposals").then(r => r.data),
 
-  getProposal: async (id: string) => {
-    const res = await apiClient.get(`/investor/proposals/${id}`);
-    return res.data;
-  },
+  getProposal: (id: string) =>
+    client.get(`/investor/proposals/${id}`).then(r => r.data),
 
-  invest: async (proposalId: string, amount: number) => {
-    const res = await apiClient.post("/investor/invest", {
-      proposal_id: proposalId,
-      amount,
-    });
-    return res.data;
-  },
+  invest: (proposal_id: string, amount: number) =>
+    client.post("/investor/invest", { proposal_id, amount }).then(r => r.data),
 
-  getPortfolio: async () => {
-    const res = await apiClient.get("/investor/portfolio");
-    return res.data;
-  },
+  getPortfolio: () =>
+    client.get("/investor/portfolio").then(r => r.data),
 };

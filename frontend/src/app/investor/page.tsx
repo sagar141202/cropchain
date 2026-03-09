@@ -15,10 +15,16 @@ export default function InvestorHome() {
   const { user, isAuthenticated, hydrated } = useAuthStore();
   const router = useRouter();
   const [proposals, setProposals] = useState<any[]>([]);
+
   useEffect(() => {
     if (hydrated && !isAuthenticated) { router.push("/login"); return; }
-    if (isAuthenticated) investorAPI.browseProposals().then(setProposals).catch(() => toast.error("Failed to load"));
+    if (!isAuthenticated) return;
+    const poll = () => investorAPI.browseProposals().then(setProposals).catch(() => {});
+    poll();
+    const t = setInterval(poll, 5000);
+    return () => clearInterval(t);
   }, [hydrated, isAuthenticated]);
+
   if (!hydrated) return null;
 
   return (
@@ -26,7 +32,6 @@ export default function InvestorHome() {
       <Navbar />
       <div className="max-w-2xl mx-auto px-4 py-6">
 
-        {/* Hero */}
         <motion.div initial={{ opacity:0, y:18 }} animate={{ opacity:1, y:0 }}
           className="rounded-3xl p-6 mb-6 relative overflow-hidden"
           style={{ background:"linear-gradient(135deg,#1d4ed8,#1e40af,#1e3a8a)", color:"white" }}>
@@ -48,14 +53,13 @@ export default function InvestorHome() {
 
         <div className="grid grid-cols-3 gap-3 mb-6">
           {[
-            { label:"Open Deals", value:proposals.length||"—", icon:Users,      color:"#6366f1", bg:"#e0e7ff" },
+            { label:"Open Deals", value:proposals.length||"0", icon:Users,      color:"#6366f1", bg:"#e0e7ff" },
             { label:"Avg ROI",    value:"18%",                  icon:TrendingUp, color:"#22c55e", bg:"#dcfce7" },
             { label:"Min Invest", value:"₹1K",                  icon:DollarSign, color:"#f59e0b", bg:"#fef3c7" },
           ].map((s,i) => (
             <motion.div key={s.label} initial={{ opacity:0, y:12 }} animate={{ opacity:1, y:0 }} transition={{ delay:i*0.07 }}
               className="glass rounded-2xl p-4 text-center">
-              <div className="w-8 h-8 rounded-xl flex items-center justify-center mx-auto mb-2"
-                style={{ background:s.bg }}>
+              <div className="w-8 h-8 rounded-xl flex items-center justify-center mx-auto mb-2" style={{ background:s.bg }}>
                 <s.icon className="w-4 h-4" style={{ color:s.color }} />
               </div>
               <p className="font-bold text-base" style={{ color:"var(--text-1)" }}>{s.value}</p>
@@ -65,9 +69,11 @@ export default function InvestorHome() {
         </div>
 
         <div className="flex items-center justify-between mb-3">
-          <p className="text-xs font-bold uppercase tracking-widest" style={{ color:"var(--text-3)" }}>Open Proposals</p>
-          <Link href="/investor/browse" className="flex items-center gap-1 text-xs font-semibold"
-            style={{ color:"var(--green-dark)" }}>
+          <div className="flex items-center gap-2">
+            <p className="text-xs font-bold uppercase tracking-widest" style={{ color:"var(--text-3)" }}>Open Proposals</p>
+            <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+          </div>
+          <Link href="/investor/browse" className="flex items-center gap-1 text-xs font-semibold" style={{ color:"var(--green-dark)" }}>
             View all <ArrowRight className="w-3 h-3" />
           </Link>
         </div>
@@ -76,7 +82,7 @@ export default function InvestorHome() {
           <div className="glass rounded-2xl p-10 text-center">
             <Briefcase className="w-10 h-10 mx-auto mb-3" style={{ color:"var(--text-3)" }} />
             <p className="text-sm font-medium" style={{ color:"var(--text-2)" }}>No open proposals yet</p>
-            <p className="text-xs mt-1" style={{ color:"var(--text-3)" }}>Farmers will publish soon</p>
+            <p className="text-xs mt-1" style={{ color:"var(--text-3)" }}>Auto-refreshing every 5 seconds</p>
           </div>
         ) : proposals.slice(0,3).map((p,i) => (
           <motion.div key={p.id} initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }} transition={{ delay:i*0.07 }}

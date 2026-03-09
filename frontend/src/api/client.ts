@@ -1,35 +1,36 @@
 import axios from "axios";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-
-export const apiClient = axios.create({
-  baseURL: API_URL,
+const client = axios.create({
+  baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000",
   headers: { "Content-Type": "application/json" },
 });
 
-apiClient.interceptors.request.use((config) => {
+client.interceptors.request.use((config) => {
   if (typeof window !== "undefined") {
     const token = localStorage.getItem("accessToken");
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+    if (token && config.headers) {
+      config.headers["Authorization"] = `Bearer ${token}`;
     }
   }
   return config;
 });
 
-apiClient.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      if (typeof window !== "undefined") {
-        // Only redirect if it's not a login/register request
-        const url = error.config?.url || "";
-        if (!url.includes("/auth/")) {
-          localStorage.clear();
+client.interceptors.response.use(
+  res => res,
+  err => {
+    if (err.response?.status === 401) {
+      const url = err.config?.url || "";
+      if (!url.includes("/auth/")) {
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("accessToken");
+          localStorage.removeItem("refreshToken");
+          localStorage.removeItem("user");
           window.location.href = "/login";
         }
       }
     }
-    return Promise.reject(error);
+    return Promise.reject(err);
   }
 );
+
+export default client;

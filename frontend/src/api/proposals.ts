@@ -1,7 +1,7 @@
-import { apiClient } from "./client";
+import client from "./client";
 
 export const proposalsAPI = {
-  create: async (data: {
+  create: (data: {
     title: string;
     description: string;
     crop_name: string;
@@ -9,25 +9,16 @@ export const proposalsAPI = {
     expected_yield: number;
     amount_requested: number;
     roi_percent: number;
-    language: string;
+    language?: string;
     generated_pitch?: string;
-  }) => {
-    const res = await apiClient.post("/proposals/create", data);
-    return res.data;
-  },
+  }) => client.post("/proposals/create", data).then(r => r.data),
 
-  publish: async (proposal_id: string) => {
-    const res = await apiClient.post("/proposals/publish", { proposal_id });
-    return res.data;
-  },
+  publish: (proposal_id: string) =>
+    client.post("/proposals/publish", { proposal_id }).then(r => r.data),
 
-  getMine: async () => {
-    const res = await apiClient.get("/proposals/my");
-    return res.data;
-  },
+  getMyProposals: () =>
+    client.get("/proposals/my").then(r => r.data),
 
-  delete: async (proposal_id: string) => {
-    const res = await apiClient.delete(`/proposals/${proposal_id}`);
-    return res.data;
-  },
+  delete: (id: string) =>
+    client.delete(`/proposals/${id}`).then(r => r.data),
 };
