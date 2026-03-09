@@ -10,18 +10,24 @@ export const apiClient = axios.create({
 apiClient.interceptors.request.use((config) => {
   if (typeof window !== "undefined") {
     const token = localStorage.getItem("accessToken");
-    if (token) config.headers.Authorization = `Bearer ${token}`;
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
   }
   return config;
 });
 
 apiClient.interceptors.response.use(
   (response) => response,
-  async (error) => {
+  (error) => {
     if (error.response?.status === 401) {
       if (typeof window !== "undefined") {
-        localStorage.clear();
-        window.location.href = "/login";
+        // Only redirect if it's not a login/register request
+        const url = error.config?.url || "";
+        if (!url.includes("/auth/")) {
+          localStorage.clear();
+          window.location.href = "/login";
+        }
       }
     }
     return Promise.reject(error);

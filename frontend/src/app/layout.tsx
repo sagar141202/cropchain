@@ -1,38 +1,27 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Toaster } from "react-hot-toast";
-
+import AuthProvider from "@/components/AuthProvider";
 export const metadata: Metadata = {
-  title: "CropChain",
-  description: "AI-powered agricultural intelligence for Indian farmers",
+  title: "CropChain — Agricultural Intelligence",
+  description: "ML-verified crop intelligence for Indian farmers",
 };
-
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en">
       <body>
-        {children}
-        <Toaster position="top-right" toastOptions={{
+        <div className="mesh-bg" />
+        <AuthProvider>
+          <div className="page-content">{children}</div>
+        </AuthProvider>
+        <Toaster position="top-center" toastOptions={{
           style: {
-            background: "#fff",
-            color: "#0f172a",
-            border: "1px solid #e2e8f0",
-            borderRadius: "10px",
-            fontSize: "0.875rem",
-            fontFamily: "Plus Jakarta Sans, sans-serif",
-            boxShadow: "0 8px 24px rgba(0,0,0,0.08)",
+            background: "var(--glass)", backdropFilter: "blur(20px)",
+            border: "1px solid var(--glass-border)",
+            color: "var(--text-1)", borderRadius: "14px",
+            boxShadow: "var(--shadow)", fontFamily: "'DM Sans', sans-serif",
+            fontSize: "13px", fontWeight: 500,
           },
-          success: { iconTheme: { primary: "#16a34a", secondary: "#fff" } },
-        }} />
-        <script dangerouslySetInnerHTML={{
-          __html: `
-            try {
-              if (localStorage.getItem('theme') === 'dark' ||
-                (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-                document.documentElement.classList.add('dark');
-              }
-            } catch(e) {}
-          `
         }} />
       </body>
     </html>

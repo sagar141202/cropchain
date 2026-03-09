@@ -1,28 +1,21 @@
 import { create } from "zustand";
-
 interface UIState {
   isDarkMode: boolean;
-  isLoading: boolean;
-  activeTab: string;
-  toggleDarkMode: () => void;
-  setLoading: (loading: boolean) => void;
-  setActiveTab: (tab: string) => void;
+  toggleDark: () => void;
+  initTheme: () => void;
 }
-
 export const useUIStore = create<UIState>((set) => ({
   isDarkMode: false,
-  isLoading: false,
-  activeTab: "home",
-
-  toggleDarkMode: () =>
-    set((state) => {
-      const newMode = !state.isDarkMode;
-      if (typeof window !== "undefined") {
-        document.documentElement.classList.toggle("dark", newMode);
-      }
-      return { isDarkMode: newMode };
-    }),
-
-  setLoading: (loading) => set({ isLoading: loading }),
-  setActiveTab: (tab) => set({ activeTab: tab }),
+  initTheme: () => {
+    if (typeof window === "undefined") return;
+    const dark = localStorage.getItem("theme") === "dark";
+    document.documentElement.classList.toggle("dark", dark);
+    set({ isDarkMode: dark });
+  },
+  toggleDark: () => set((s) => {
+    const next = !s.isDarkMode;
+    document.documentElement.classList.toggle("dark", next);
+    localStorage.setItem("theme", next ? "dark" : "light");
+    return { isDarkMode: next };
+  }),
 }));

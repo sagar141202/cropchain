@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, Depends, status
-from app.middleware.auth_middleware import get_current_user, require_farmer
+from app.middleware.auth_middleware import get_current_user
 from app.database import get_db
 from datetime import datetime
 from bson import ObjectId
@@ -25,12 +25,14 @@ class ProposalPublish(BaseModel):
 @router.post("/create", status_code=status.HTTP_201_CREATED)
 async def create_proposal(
     data: ProposalCreate,
-    current_user: dict = Depends(require_farmer)
+    current_user: dict = Depends(get_current_user)
 ):
+    if current_user.get("role") != "farmer":
+        raise HTTPException(status_code=403, detail="Farmer access required")
     db = get_db()
     doc = {
         "farmer_id": str(current_user["_id"]),
-        "farmer_name": current_user["name"],
+        "farmer_name": current_user.get("name", ""),
         "farmer_state": current_user.get("state", ""),
         "title": data.title,
         "description": data.description,
@@ -46,13 +48,16 @@ async def create_proposal(
     }
     result = await db.proposals.insert_one(doc)
     doc["id"] = str(result.inserted_id)
+    doc.pop("_id", None)
     return doc
 
 @router.post("/publish")
 async def publish_proposal(
     data: ProposalPublish,
-    current_user: dict = Depends(require_farmer)
+    current_user: dict = Depends(get_current_user)
 ):
+    if current_user.get("role") != "farmer":
+        raise HTTPException(status_code=403, detail="Farmer access required")
     db = get_db()
     proposal = await db.proposals.find_one({
         "_id": ObjectId(data.proposal_id),
@@ -64,10 +69,10 @@ async def publish_proposal(
         {"_id": ObjectId(data.proposal_id)},
         {"$set": {"status": "open"}}
     )
-    return {"message": "Proposal published successfully", "proposal_id": data.proposal_id}
+    return {"message": "Published", "proposal_id": data.proposal_id}
 
 @router.get("/my")
-async def get_my_proposals(current_user: dict = Depends(require_farmer)):
+async def get_my_proposals(current_user: dict = Depends(get_current_user)):
     db = get_db()
     proposals = await db.proposals.find(
         {"farmer_id": str(current_user["_id"])}
@@ -80,7 +85,7 @@ async def get_my_proposals(current_user: dict = Depends(require_farmer)):
 @router.delete("/{proposal_id}")
 async def delete_proposal(
     proposal_id: str,
-    current_user: dict = Depends(require_farmer)
+    current_user: dict = Depends(get_current_user)
 ):
     db = get_db()
     result = await db.proposals.delete_one({
@@ -88,5 +93,5 @@ async def delete_proposal(
         "farmer_id": str(current_user["_id"])
     })
     if result.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="Proposal not found")
+        raise HTTPException(status_code=404, detail="Not found")
     return {"message": "Deleted"}

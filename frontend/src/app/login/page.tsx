@@ -1,76 +1,74 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { motion } from "framer-motion";
-import { useAuthStore } from "@/store/authStore";
+import Link from "next/link";
 import { authAPI } from "@/api/auth";
-import toast from "react-hot-toast";
-import { Eye, EyeOff, Sprout } from "lucide-react";
+import { useAuthStore } from "@/store/authStore";
 import Navbar from "@/components/layout/Navbar";
+import { Eye, EyeOff, Leaf, ArrowRight } from "lucide-react";
+import toast from "react-hot-toast";
 
-export default function LoginPage() {
-  const router = useRouter();
-  const { setAuth } = useAuthStore();
+export default function Login() {
   const [form, setForm] = useState({ email: "", password: "" });
-  const [loading, setLoading] = useState(false);
   const [show, setShow] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const { setAuth } = useAuthStore();
+  const router = useRouter();
 
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault(); setLoading(true);
+  const submit = async () => {
+    if (!form.email || !form.password) return toast.error("Fill all fields");
+    setLoading(true);
     try {
-      const d = await authAPI.login(form.email, form.password);
-      setAuth(d.user, d.access_token, d.refresh_token);
-      toast.success(`Welcome back, ${d.user.name}!`);
-      router.push(d.user.role === "farmer" ? "/farmer" : "/investor");
-    } catch (err: any) { toast.error(err.response?.data?.detail || "Login failed"); }
-    finally { setLoading(false); }
+      const res = await authAPI.login(form.email, form.password);
+      setAuth(res.user, res.access_token, res.refresh_token);
+      toast.success("Welcome back!");
+      router.push(res.user.role === "investor" ? "/investor" : "/farmer");
+    } catch (e: any) {
+      toast.error(e?.response?.data?.detail || "Login failed");
+    } finally { setLoading(false); }
   };
 
   return (
-    <div style={{ background: "var(--surface-2)", minHeight: "100vh" }}>
+    <div className="min-h-screen page">
       <Navbar />
-      <div className="flex items-center justify-center px-4 py-16">
-        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-sm">
+      <div className="max-w-sm mx-auto px-4 py-16">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass rounded-3xl p-8">
           <div className="text-center mb-8">
-            <div className="w-12 h-12 mx-auto mb-4 rounded-2xl flex items-center justify-center"
-              style={{ background: "var(--green-light)" }}>
-              <Sprout className="w-6 h-6" style={{ color: "var(--green)" }} />
+            <div className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-4"
+              style={{ background: "linear-gradient(135deg,#22c55e,#15803d)" }}>
+              <Leaf className="w-6 h-6 text-white" />
             </div>
-            <h1 className="font-display text-3xl mb-1" style={{ color: "var(--text-1)", letterSpacing: "-0.03em" }}>
-              Welcome back
-            </h1>
-            <p className="text-sm" style={{ color: "var(--text-2)" }}>Sign in to your CropChain account</p>
+            <h1 className="display text-3xl font-bold mb-1" style={{ color: "var(--text-1)" }}>Welcome back</h1>
+            <p className="text-sm" style={{ color: "var(--text-3)" }}>Sign in to your CropChain account</p>
           </div>
-
-          <div className="card p-7">
-            <form onSubmit={submit} className="space-y-4">
-              <div>
-                <label className="field-label">Email address</label>
-                <input type="email" className="field" placeholder="you@example.com"
-                  value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} required />
-              </div>
-              <div>
-                <label className="field-label">Password</label>
-                <div className="relative">
-                  <input type={show ? "text" : "password"} className="field !pr-10" placeholder="••••••••"
-                    value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} required />
-                  <button type="button" onClick={() => setShow(!show)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2"
-                    style={{ color: "var(--text-3)" }}>
-                    {show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-              </div>
-              <button type="submit" disabled={loading} className="btn btn-primary w-full !py-2.5">
-                {loading ? <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Signing in...</> : "Sign in"}
+          <div className="field">
+            <label className="field-label">Email</label>
+            <input type="email" placeholder="you@example.com" value={form.email}
+              onChange={e => setForm(p => ({ ...p, email: e.target.value }))} />
+          </div>
+          <div className="field" style={{ marginBottom: 24 }}>
+            <label className="field-label">Password</label>
+            <div style={{ position: "relative" }}>
+              <input type={show ? "text" : "password"} placeholder="••••••••" value={form.password}
+                onChange={e => setForm(p => ({ ...p, password: e.target.value }))}
+                onKeyDown={e => e.key === "Enter" && submit()}
+                style={{ paddingRight: 44 }} />
+              <button onClick={() => setShow(!show)} style={{
+                position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)",
+                background: "none", border: "none", cursor: "pointer", color: "var(--text-3)"
+              }}>
+                {show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
-            </form>
-            <div className="divider" />
-            <p className="text-center text-sm" style={{ color: "var(--text-2)" }}>
-              No account? <Link href="/register" className="font-semibold hover:underline" style={{ color: "var(--green)" }}>Create one</Link>
-            </p>
+            </div>
           </div>
+          <button className="btn btn-green w-full" onClick={submit} disabled={loading}>
+            {loading ? "Signing in…" : <><span>Sign In</span><ArrowRight className="w-4 h-4" /></>}
+          </button>
+          <p className="text-center text-xs mt-5" style={{ color: "var(--text-3)" }}>
+            No account?{" "}
+            <Link href="/register" style={{ color: "var(--green-dark)", fontWeight: 600 }}>Create one free</Link>
+          </p>
         </motion.div>
       </div>
     </div>
