@@ -1,0 +1,42 @@
+# Environment files
+.env
+.env.local
+.env.production
+*.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+venv/
+.venv/
+*.pkl
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+
+# Node
+node_modules/
+.next/
+out/
+dist/
+
+# ML models (track separately)
+backend/app/ml/*.pkl
+
+# Android
+android/
+*.apk
+*.aab
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/settings.json
+.idea/
+
+# Docker
+*.log
