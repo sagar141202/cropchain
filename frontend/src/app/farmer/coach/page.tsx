@@ -9,6 +9,7 @@ import Navbar from "@/components/layout/Navbar";
 import BottomNav from "@/components/layout/BottomNav";
 import { CROPS, LANGUAGES, INDIAN_STATES } from "@/utils/cropConstants";
 import { MessageSquare, Send, Sparkles, Save, Share2, CheckCircle } from "lucide-react";
+import { burstConfetti, firstProposalConfetti } from "@/utils/confetti";
 import toast from "react-hot-toast";
 
 function stripMarkdown(t: string) {
@@ -21,24 +22,20 @@ export default function FarmerCoach() {
   const router = useRouter();
 
   const [form, setForm] = useState({
-    crop_name: "wheat",
-    area_acres: "5",
-    predicted_yield: "225",
-    investment_ask: "50000",
-    roi_percent: "18",
-    state: user?.state || "karnataka",
-    language: user?.language || "en",
+    crop_name: "wheat", area_acres: "5", predicted_yield: "225",
+    investment_ask: "50000", roi_percent: "18",
+    state: user?.state || "karnataka", language: user?.language || "en",
   });
-
-  const [pitch, setPitch] = useState("");
-  const [savedId, setSavedId] = useState<string | null>(null);
+  const [pitch, setPitch]         = useState("");
+  const [savedId, setSavedId]     = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const [saving, setSaving]       = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [showPublished, setShowPublished] = useState(false);
+  const [isFirstProposal, setIsFirstProposal] = useState(false);
 
-  const [msgs, setMsgs] = useState<{ role: "user" | "assistant"; text: string }[]>([]);
-  const [chat, setChat] = useState("");
+  const [msgs, setMsgs]           = useState<{ role: "user" | "assistant"; text: string }[]>([]);
+  const [chat, setChat]           = useState("");
   const [chatLoading, setChatLoading] = useState(false);
 
   useEffect(() => { if (hydrated && !isAuthenticated) router.push("/login"); }, [hydrated, isAuthenticated]);
@@ -50,18 +47,13 @@ export default function FarmerCoach() {
     setGenerating(true); setSavedId(null); setPitch("");
     try {
       const res = await groqAPI.generatePitch({
-        crop_name: form.crop_name,
-        area_acres: Number(form.area_acres),
-        predicted_yield: Number(form.predicted_yield),
-        investment_ask: Number(form.investment_ask),
-        roi_percent: Number(form.roi_percent),
-        state: form.state,
-        language: form.language,
+        crop_name: form.crop_name, area_acres: Number(form.area_acres),
+        predicted_yield: Number(form.predicted_yield), investment_ask: Number(form.investment_ask),
+        roi_percent: Number(form.roi_percent), state: form.state, language: form.language,
       });
       setPitch(stripMarkdown(res.proposal || res.pitch || res.content || JSON.stringify(res)));
-    } catch (e: any) {
-      toast.error(e?.response?.data?.detail || "Generation failed");
-    } finally { setGenerating(false); }
+    } catch (e: any) { toast.error(e?.response?.data?.detail || "Generation failed"); }
+    finally { setGenerating(false); }
   };
 
   const save = async () => {
@@ -70,20 +62,15 @@ export default function FarmerCoach() {
     try {
       const res = await proposalsAPI.create({
         title: `${form.crop_name.charAt(0).toUpperCase() + form.crop_name.slice(1)} Farm — ${form.area_acres} acres`,
-        description: pitch,
-        generated_pitch: pitch,
-        crop_name: form.crop_name,
-        area_acres: Number(form.area_acres),
-        expected_yield: Number(form.predicted_yield),
-        amount_requested: Number(form.investment_ask),
-        roi_percent: Number(form.roi_percent),
-        language: form.language,
+        description: pitch, generated_pitch: pitch,
+        crop_name: form.crop_name, area_acres: Number(form.area_acres),
+        expected_yield: Number(form.predicted_yield), amount_requested: Number(form.investment_ask),
+        roi_percent: Number(form.roi_percent), language: form.language,
       });
       setSavedId(res.id || res._id);
       toast.success("Draft saved!");
-    } catch (e: any) {
-      toast.error(e?.response?.data?.detail || "Save failed");
-    } finally { setSaving(false); }
+    } catch (e: any) { toast.error(e?.response?.data?.detail || "Save failed"); }
+    finally { setSaving(false); }
   };
 
   const publish = async () => {
@@ -91,6 +78,18 @@ export default function FarmerCoach() {
     setPublishing(true);
     try {
       await proposalsAPI.publish(savedId);
+
+      // Check if this is their first ever published proposal
+      const firstKey = `first_proposal_${user?.id}`;
+      const isFirst = !localStorage.getItem(firstKey);
+      setIsFirstProposal(isFirst);
+      if (isFirst) {
+        localStorage.setItem(firstKey, "true");
+        setTimeout(firstProposalConfetti, 300);
+      } else {
+        setTimeout(burstConfetti, 300);
+      }
+
       setShowPublished(true);
     } catch { toast.error("Publish failed"); }
     finally { setPublishing(false); }
@@ -119,7 +118,6 @@ export default function FarmerCoach() {
         <h1 className="display text-2xl font-bold mb-1" style={{ color: "var(--text-1)" }}>AI Coach</h1>
         <p className="text-sm mb-6" style={{ color: "var(--text-3)" }}>Generate investor pitches & get negotiation help</p>
 
-        {/* Pitch generator */}
         <div className="glass rounded-2xl p-5 mb-4">
           <div className="flex items-center gap-2 mb-4">
             <Sparkles className="w-4 h-4" style={{ color: "var(--green-dark)" }} />
@@ -152,7 +150,6 @@ export default function FarmerCoach() {
           </button>
         </div>
 
-        {/* Pitch output */}
         {pitch && (
           <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="glass rounded-2xl p-5 mb-4">
             <h3 className="font-semibold text-sm mb-3" style={{ color: "var(--text-1)" }}>Your Pitch</h3>
@@ -170,7 +167,6 @@ export default function FarmerCoach() {
           </motion.div>
         )}
 
-        {/* Chat coach */}
         <div className="glass rounded-2xl p-5">
           <div className="flex items-center gap-2 mb-4">
             <MessageSquare className="w-4 h-4" style={{ color: "var(--blue)" }} />
@@ -214,7 +210,7 @@ export default function FarmerCoach() {
         </div>
       </div>
 
-      {/* Published modal */}
+      {/* Published success modal */}
       <AnimatePresence>
         {showPublished && (
           <div className="modal-overlay" onClick={() => setShowPublished(false)}>
@@ -224,13 +220,20 @@ export default function FarmerCoach() {
               transition={{ type: "spring", stiffness: 400, damping: 28 }}
               onClick={e => e.stopPropagation()}>
               <div className="p-8 text-center">
-                <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
+                <motion.div
+                  initial={{ scale: 0 }} animate={{ scale: 1 }}
+                  transition={{ type: "spring", stiffness: 500, damping: 20, delay: 0.1 }}
+                  className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
                   style={{ background: "var(--green-pale)" }}>
                   <CheckCircle className="w-8 h-8" style={{ color: "var(--green-dark)" }} />
-                </div>
-                <h2 className="display text-2xl font-bold mb-2" style={{ color: "var(--text-1)" }}>Published!</h2>
+                </motion.div>
+                <h2 className="display text-2xl font-bold mb-2" style={{ color: "var(--text-1)" }}>
+                  {isFirstProposal ? "🎉 First Proposal!" : "Published!"}
+                </h2>
                 <p className="text-sm mb-6" style={{ color: "var(--text-2)" }}>
-                  Your proposal is now live. Investors can see and fund it.
+                  {isFirstProposal
+                    ? "Congratulations on your first investor pitch! It's now live and visible to all investors."
+                    : "Your proposal is now live. Investors can see and fund it."}
                 </p>
                 <div className="flex gap-3">
                   <button className="btn btn-ghost flex-1" onClick={() => setShowPublished(false)}>Stay here</button>

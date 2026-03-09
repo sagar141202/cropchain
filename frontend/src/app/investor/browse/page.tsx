@@ -7,7 +7,8 @@ import { investorAPI } from "@/api/investor";
 import Navbar from "@/components/layout/Navbar";
 import BottomNav from "@/components/layout/BottomNav";
 import { formatINR } from "@/utils/formatCurrency";
-import { X, TrendingUp, IndianRupee, Percent, FileText, Search, SlidersHorizontal, Check } from "lucide-react";
+import { X, TrendingUp, IndianRupee, Percent, FileText, Search, SlidersHorizontal, Check, Star } from "lucide-react";
+import { burstConfetti, firstInvestmentConfetti } from "@/utils/confetti";
 import toast from "react-hot-toast";
 
 function stripMarkdown(t: string) {
@@ -16,61 +17,44 @@ function stripMarkdown(t: string) {
 }
 
 const CROP_FILTERS = [
-  { value: "all",       label: "All Crops" },
-  { value: "wheat",     label: "Wheat"     },
-  { value: "rice",      label: "Rice"      },
-  { value: "cotton",    label: "Cotton"    },
-  { value: "maize",     label: "Maize"     },
-  { value: "sugarcane", label: "Sugarcane" },
-  { value: "onion",     label: "Onion"     },
-  { value: "soybean",   label: "Soybean"   },
+  { value: "all", label: "All Crops" }, { value: "wheat", label: "Wheat" },
+  { value: "rice", label: "Rice" }, { value: "cotton", label: "Cotton" },
+  { value: "maize", label: "Maize" }, { value: "sugarcane", label: "Sugarcane" },
+  { value: "onion", label: "Onion" }, { value: "soybean", label: "Soybean" },
 ];
-
 const ROI_FILTERS = [
-  { value: "all",    label: "Any ROI"  },
-  { value: "10",     label: "10%+"     },
-  { value: "15",     label: "15%+"     },
-  { value: "20",     label: "20%+"     },
-  { value: "25",     label: "25%+"     },
+  { value: "all", label: "Any ROI" }, { value: "10", label: "10%+" },
+  { value: "15", label: "15%+" }, { value: "20", label: "20%+" }, { value: "25", label: "25%+" },
 ];
-
 const AREA_FILTERS = [
-  { value: "all",   label: "Any Size"    },
-  { value: "small", label: "< 5 acres"  },
-  { value: "mid",   label: "5–20 acres" },
-  { value: "large", label: "20+ acres"  },
+  { value: "all", label: "Any Size" }, { value: "small", label: "< 5 acres" },
+  { value: "mid", label: "5–20 acres" }, { value: "large", label: "20+ acres" },
 ];
 
 export default function InvestorBrowse() {
-  const { isAuthenticated, hydrated } = useAuthStore();
+  const { user, isAuthenticated, hydrated } = useAuthStore();
   const router = useRouter();
-
-  // Data
-  const [proposals, setProposals]     = useState<any[]>([]);
-  const [loading, setLoading]         = useState(true);
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-
-  // Filters
-  const [search, setSearch]       = useState("");
-  const [cropFilter, setCrop]     = useState("all");
-  const [roiFilter, setRoi]       = useState("all");
-  const [areaFilter, setArea]     = useState("all");
-  const [showFilters, setShowFilters] = useState(false);
-
-  // Modal
-  const [selected, setSelected] = useState<any>(null);
-  const [amount, setAmount]     = useState("");
-  const [investing, setInvesting] = useState(false);
+  const [proposals, setProposals]       = useState<any[]>([]);
+  const [loading, setLoading]           = useState(true);
+  const [lastUpdated, setLastUpdated]   = useState<Date | null>(null);
+  const [search, setSearch]             = useState("");
+  const [cropFilter, setCrop]           = useState("all");
+  const [roiFilter, setRoi]             = useState("all");
+  const [areaFilter, setArea]           = useState("all");
+  const [showFilters, setShowFilters]   = useState(false);
+  const [selected, setSelected]         = useState<any>(null);
+  const [amount, setAmount]             = useState("");
+  const [investing, setInvesting]       = useState(false);
+  const [showSuccess, setShowSuccess]   = useState(false);
+  const [isFirstInvest, setIsFirstInvest] = useState(false);
 
   const fetchProposals = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     try {
       const data = await investorAPI.browseProposals();
-      setProposals(data);
-      setLastUpdated(new Date());
-    } catch {
-      if (!silent) toast.error("Failed to load proposals");
-    } finally { setLoading(false); }
+      setProposals(data); setLastUpdated(new Date());
+    } catch { if (!silent) toast.error("Failed to load proposals"); }
+    finally { setLoading(false); }
   }, []);
 
   useEffect(() => {
@@ -81,48 +65,44 @@ export default function InvestorBrowse() {
     return () => clearInterval(t);
   }, [hydrated, isAuthenticated, fetchProposals]);
 
-  // Pure frontend filtering — instant, zero API calls
-  const filtered = useMemo(() => {
-    return proposals.filter(p => {
-      // Search — title, description, crop name, farmer name
-      if (search.trim()) {
-        const q = search.toLowerCase();
-        const haystack = [p.title, p.description, p.crop_name, p.farmer_name].join(" ").toLowerCase();
-        if (!haystack.includes(q)) return false;
-      }
-      // Crop filter
-      if (cropFilter !== "all" && p.crop_name?.toLowerCase() !== cropFilter) return false;
-      // ROI filter
-      if (roiFilter !== "all" && (p.roi_percent || 0) < Number(roiFilter)) return false;
-      // Area filter
-      const acres = p.area_acres || 0;
-      if (areaFilter === "small"  && acres >= 5)  return false;
-      if (areaFilter === "mid"    && (acres < 5 || acres >= 20)) return false;
-      if (areaFilter === "large"  && acres < 20)  return false;
-      return true;
-    });
-  }, [proposals, search, cropFilter, roiFilter, areaFilter]);
+  const filtered = useMemo(() => proposals.filter(p => {
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      const hay = [p.title, p.description, p.crop_name, p.farmer_name].join(" ").toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    if (cropFilter !== "all" && p.crop_name?.toLowerCase() !== cropFilter) return false;
+    if (roiFilter  !== "all" && (p.roi_percent || 0) < Number(roiFilter)) return false;
+    const acres = p.area_acres || 0;
+    if (areaFilter === "small" && acres >= 5)  return false;
+    if (areaFilter === "mid"   && (acres < 5 || acres >= 20)) return false;
+    if (areaFilter === "large" && acres < 20)  return false;
+    return true;
+  }), [proposals, search, cropFilter, roiFilter, areaFilter]);
 
-  const activeFilterCount = [
-    cropFilter !== "all",
-    roiFilter  !== "all",
-    areaFilter !== "all",
-  ].filter(Boolean).length;
-
+  const activeFilterCount = [cropFilter !== "all", roiFilter !== "all", areaFilter !== "all"].filter(Boolean).length;
   const clearAll = () => { setCrop("all"); setRoi("all"); setArea("all"); setSearch(""); };
 
   const invest = async () => {
-    if (!amount || isNaN(Number(amount)) || Number(amount) <= 0)
-      return toast.error("Enter a valid amount");
+    if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) return toast.error("Enter a valid amount");
     setInvesting(true);
     try {
       await investorAPI.invest(selected.id, Number(amount));
-      toast.success("Investment submitted! 🎉");
-      setSelected(null); setAmount("");
+
+      const firstKey = `first_investment_${user?.id}`;
+      const isFirst = !localStorage.getItem(firstKey);
+      setIsFirstInvest(isFirst);
+      if (isFirst) {
+        localStorage.setItem(firstKey, "true");
+        setTimeout(firstInvestmentConfetti, 300);
+      } else {
+        setTimeout(burstConfetti, 300);
+      }
+
+      setSelected(null); setAmount(""); setShowSuccess(true);
       fetchProposals(true);
-    } catch (e: any) {
-      toast.error(e?.response?.data?.detail || "Investment failed");
-    } finally { setInvesting(false); }
+    } catch (e: any) { toast.error(e?.response?.data?.detail || "Investment failed"); }
+    finally { setInvesting(false); }
   };
 
   if (!hydrated) return null;
@@ -131,8 +111,6 @@ export default function InvestorBrowse() {
     <div className="min-h-screen pb-24 page">
       <Navbar />
       <div className="max-w-2xl mx-auto px-4 py-6">
-
-        {/* Header */}
         <div className="flex items-center justify-between mb-1">
           <h1 className="display text-2xl font-bold" style={{ color: "var(--text-1)" }}>Browse Proposals</h1>
           <div className="flex items-center gap-1.5">
@@ -144,42 +122,30 @@ export default function InvestorBrowse() {
           {lastUpdated ? `Updated ${lastUpdated.toLocaleTimeString()}` : "Loading…"}
         </p>
 
-        {/* Search bar */}
+        {/* Search */}
         <div className="relative mb-3">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4"
-            style={{ color: "var(--text-3)" }} />
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: "var(--text-3)" }} />
+          <input value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Search by crop, farmer, title…"
             style={{
-              width: "100%",
-              background: "var(--glass2)",
-              backdropFilter: "blur(10px)",
-              border: "1px solid var(--glass-border)",
-              borderRadius: 14,
-              padding: "10px 40px 10px 38px",
-              fontSize: 14,
-              color: "var(--text-1)",
-              fontFamily: "'DM Sans', sans-serif",
-              outline: "none",
+              width: "100%", background: "var(--glass2)", backdropFilter: "blur(10px)",
+              border: "1px solid var(--glass-border)", borderRadius: 14,
+              padding: "10px 40px 10px 38px", fontSize: 14,
+              color: "var(--text-1)", fontFamily: "'DM Sans', sans-serif", outline: "none",
             }}
             onFocus={e => e.target.style.borderColor = "var(--green)"}
-            onBlur={e  => e.target.style.borderColor = "var(--glass-border)"}
-          />
+            onBlur={e  => e.target.style.borderColor = "var(--glass-border)"} />
           {search && (
-            <button onClick={() => setSearch("")}
-              className="absolute right-3.5 top-1/2 -translate-y-1/2"
+            <button onClick={() => setSearch("")} className="absolute right-3.5 top-1/2 -translate-y-1/2"
               style={{ color: "var(--text-3)" }}>
               <X className="w-3.5 h-3.5" />
             </button>
           )}
         </div>
 
-        {/* Filter toggle row */}
+        {/* Filter toggle */}
         <div className="flex items-center gap-2 mb-3">
-          <button
-            onClick={() => setShowFilters(f => !f)}
+          <button onClick={() => setShowFilters(f => !f)}
             className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition-all"
             style={{
               background: showFilters || activeFilterCount > 0 ? "var(--green-pale)" : "var(--glass2)",
@@ -195,53 +161,29 @@ export default function InvestorBrowse() {
               </span>
             )}
           </button>
-
-          {/* Active filter pills */}
           <div className="flex gap-1.5 overflow-x-auto flex-1">
             {cropFilter !== "all" && (
-              <span className="badge badge-green flex items-center gap-1 flex-shrink-0 cursor-pointer"
-                onClick={() => setCrop("all")}>
-                {CROP_FILTERS.find(c => c.value === cropFilter)?.label}
-                <X className="w-2.5 h-2.5" />
-              </span>
-            )}
+              <span className="badge badge-green flex items-center gap-1 flex-shrink-0 cursor-pointer" onClick={() => setCrop("all")}>
+                {CROP_FILTERS.find(c => c.value === cropFilter)?.label}<X className="w-2.5 h-2.5" /></span>)}
             {roiFilter !== "all" && (
-              <span className="badge badge-blue flex items-center gap-1 flex-shrink-0 cursor-pointer"
-                onClick={() => setRoi("all")}>
-                ROI {roiFilter}%+
-                <X className="w-2.5 h-2.5" />
-              </span>
-            )}
+              <span className="badge badge-blue flex items-center gap-1 flex-shrink-0 cursor-pointer" onClick={() => setRoi("all")}>
+                ROI {roiFilter}%+<X className="w-2.5 h-2.5" /></span>)}
             {areaFilter !== "all" && (
-              <span className="badge badge-amber flex items-center gap-1 flex-shrink-0 cursor-pointer"
-                onClick={() => setArea("all")}>
-                {AREA_FILTERS.find(a => a.value === areaFilter)?.label}
-                <X className="w-2.5 h-2.5" />
-              </span>
-            )}
+              <span className="badge badge-amber flex items-center gap-1 flex-shrink-0 cursor-pointer" onClick={() => setArea("all")}>
+                {AREA_FILTERS.find(a => a.value === areaFilter)?.label}<X className="w-2.5 h-2.5" /></span>)}
             {(activeFilterCount > 0 || search) && (
-              <button onClick={clearAll}
-                className="text-xs flex-shrink-0 font-semibold"
-                style={{ color: "var(--text-3)" }}>
-                Clear all
-              </button>
-            )}
+              <button onClick={clearAll} className="text-xs flex-shrink-0 font-semibold" style={{ color: "var(--text-3)" }}>
+                Clear all</button>)}
           </div>
         </div>
 
         {/* Filter panel */}
         <AnimatePresence>
           {showFilters && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.22, ease: "easeOut" }}
-              style={{ overflow: "hidden" }}
-              className="mb-4">
+            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.22, ease: "easeOut" }}
+              style={{ overflow: "hidden" }} className="mb-4">
               <div className="glass rounded-2xl p-4 space-y-4">
-
-                {/* Crop filter */}
                 <div>
                   <p className="field-label mb-2">Crop Type</p>
                   <div className="flex flex-wrap gap-1.5">
@@ -253,16 +195,11 @@ export default function InvestorBrowse() {
                           border: `1px solid ${cropFilter === c.value ? "var(--green)" : "var(--glass-border)"}`,
                           color: cropFilter === c.value ? "var(--green-dark)" : "var(--text-2)",
                         }}>
-                        {cropFilter === c.value && <Check className="w-2.5 h-2.5" />}
-                        {c.label}
-                      </button>
-                    ))}
+                        {cropFilter === c.value && <Check className="w-2.5 h-2.5" />}{c.label}
+                      </button>))}
                   </div>
                 </div>
-
                 <div className="divider" />
-
-                {/* ROI filter */}
                 <div>
                   <p className="field-label mb-2">Minimum ROI</p>
                   <div className="flex flex-wrap gap-1.5">
@@ -274,16 +211,11 @@ export default function InvestorBrowse() {
                           border: `1px solid ${roiFilter === r.value ? "#6366f1" : "var(--glass-border)"}`,
                           color: roiFilter === r.value ? "#3730a3" : "var(--text-2)",
                         }}>
-                        {roiFilter === r.value && <Check className="w-2.5 h-2.5" />}
-                        {r.label}
-                      </button>
-                    ))}
+                        {roiFilter === r.value && <Check className="w-2.5 h-2.5" />}{r.label}
+                      </button>))}
                   </div>
                 </div>
-
                 <div className="divider" />
-
-                {/* Area filter */}
                 <div>
                   <p className="field-label mb-2">Farm Size</p>
                   <div className="flex flex-wrap gap-1.5">
@@ -295,10 +227,8 @@ export default function InvestorBrowse() {
                           border: `1px solid ${areaFilter === a.value ? "var(--amber)" : "var(--glass-border)"}`,
                           color: areaFilter === a.value ? "#92400e" : "var(--text-2)",
                         }}>
-                        {areaFilter === a.value && <Check className="w-2.5 h-2.5" />}
-                        {a.label}
-                      </button>
-                    ))}
+                        {areaFilter === a.value && <Check className="w-2.5 h-2.5" />}{a.label}
+                      </button>))}
                   </div>
                 </div>
               </div>
@@ -306,43 +236,37 @@ export default function InvestorBrowse() {
           )}
         </AnimatePresence>
 
-        {/* Results count */}
         <p className="text-xs mb-3 font-medium" style={{ color: "var(--text-3)" }}>
           {loading ? "Loading…" : `${filtered.length} proposal${filtered.length !== 1 ? "s" : ""} found`}
-          {(activeFilterCount > 0 || search) && filtered.length !== proposals.length &&
-            ` (filtered from ${proposals.length})`}
+          {(activeFilterCount > 0 || search) && filtered.length !== proposals.length && ` (filtered from ${proposals.length})`}
         </p>
 
-        {/* Proposal cards */}
+        {/* Cards */}
         {loading ? (
           <div className="space-y-3">
-            {[1, 2, 3].map(i => (
+            {[1,2,3].map(i => (
               <div key={i} className="glass rounded-2xl p-5 animate-pulse">
                 <div className="h-4 rounded-lg mb-3" style={{ background: "var(--glass2)", width: "60%" }} />
                 <div className="h-3 rounded-lg mb-4" style={{ background: "var(--glass2)", width: "40%" }} />
                 <div className="h-8 rounded-xl" style={{ background: "var(--glass2)" }} />
-              </div>
-            ))}
+              </div>))}
           </div>
         ) : filtered.length === 0 ? (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-            className="glass rounded-2xl p-12 text-center">
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass rounded-2xl p-12 text-center">
             <FileText className="w-10 h-10 mx-auto mb-3" style={{ color: "var(--text-3)" }} />
             <p className="font-medium mb-1" style={{ color: "var(--text-2)" }}>
               {proposals.length === 0 ? "No open proposals yet" : "No proposals match your filters"}
             </p>
             <p className="text-xs mb-4" style={{ color: "var(--text-3)" }}>
-              {proposals.length === 0 ? "Farmers will publish soon — auto-refreshing" : "Try adjusting your search or filters"}
+              {proposals.length === 0 ? "Auto-refreshing every 3s" : "Try adjusting your search or filters"}
             </p>
             {(activeFilterCount > 0 || search) && (
-              <button onClick={clearAll} className="btn btn-ghost text-xs">Clear filters</button>
-            )}
+              <button onClick={clearAll} className="btn btn-ghost text-xs">Clear filters</button>)}
           </motion.div>
         ) : (
           <div className="space-y-3">
             {filtered.map((p, i) => (
-              <motion.div key={p.id}
-                initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+              <motion.div key={p.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.04 }}
                 className="glass rounded-2xl p-5 cursor-pointer hover:shadow-xl transition-all"
                 onClick={() => { setSelected(p); setAmount(""); }}>
@@ -355,23 +279,17 @@ export default function InvestorBrowse() {
                   </div>
                   <span className="badge badge-green flex-shrink-0">Open</span>
                 </div>
-                {/* Highlight matched search term */}
                 {search && p.crop_name?.toLowerCase().includes(search.toLowerCase()) && (
-                  <span className="badge badge-amber mb-2">{p.crop_name}</span>
-                )}
+                  <span className="badge badge-amber mb-2">{p.crop_name}</span>)}
                 <div className="divider" />
                 <div className="flex items-center gap-4">
                   <div className="flex items-center gap-1">
                     <IndianRupee className="w-3 h-3" style={{ color: "var(--green-dark)" }} />
-                    <span className="text-xs font-bold" style={{ color: "var(--green-dark)" }}>
-                      {formatINR(p.amount_requested)}
-                    </span>
+                    <span className="text-xs font-bold" style={{ color: "var(--green-dark)" }}>{formatINR(p.amount_requested)}</span>
                   </div>
                   <div className="flex items-center gap-1">
                     <Percent className="w-3 h-3" style={{ color: "var(--text-3)" }} />
-                    <span className="text-xs font-semibold" style={{ color: "var(--text-2)" }}>
-                      {p.roi_percent}% ROI
-                    </span>
+                    <span className="text-xs font-semibold" style={{ color: "var(--text-2)" }}>{p.roi_percent}% ROI</span>
                   </div>
                   <div className="flex items-center gap-1 ml-auto">
                     <TrendingUp className="w-3 h-3" style={{ color: "var(--text-3)" }} />
@@ -384,21 +302,18 @@ export default function InvestorBrowse() {
         )}
       </div>
 
-      {/* Invest Modal */}
+      {/* Invest modal */}
       <AnimatePresence>
         {selected && (
           <div className="modal-overlay" onClick={() => setSelected(null)}>
             <motion.div className="modal-sheet glass"
-              initial={{ opacity: 0, y: 60, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
+              initial={{ opacity: 0, y: 60, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 40, scale: 0.95 }}
               transition={{ type: "spring", stiffness: 400, damping: 30 }}
               onClick={e => e.stopPropagation()}>
               <div className="p-6">
                 <div className="flex items-start justify-between mb-3">
-                  <h2 className="display text-xl font-bold pr-4" style={{ color: "var(--text-1)" }}>
-                    {selected.title}
-                  </h2>
+                  <h2 className="display text-xl font-bold pr-4" style={{ color: "var(--text-1)" }}>{selected.title}</h2>
                   <button onClick={() => setSelected(null)}
                     className="btn-ghost w-8 h-8 !p-0 rounded-xl flex items-center justify-center flex-shrink-0">
                     <X className="w-4 h-4" />
@@ -413,19 +328,12 @@ export default function InvestorBrowse() {
                   <div className="rounded-xl px-3 py-2 mb-4 flex items-center gap-2"
                     style={{ background: "var(--glass2)", border: "1px solid var(--glass-border)" }}>
                     <span className="text-xs" style={{ color: "var(--text-3)" }}>Farmer:</span>
-                    <span className="text-xs font-semibold" style={{ color: "var(--text-1)" }}>
-                      {selected.farmer_name}
-                    </span>
+                    <span className="text-xs font-semibold" style={{ color: "var(--text-1)" }}>{selected.farmer_name}</span>
                     {selected.farmer_state && (
-                      <span className="text-xs" style={{ color: "var(--text-3)" }}>· {selected.farmer_state}</span>
-                    )}
-                  </div>
-                )}
+                      <span className="text-xs" style={{ color: "var(--text-3)" }}>· {selected.farmer_state}</span>)}
+                  </div>)}
                 <div className="rounded-2xl p-4 mb-4 text-sm leading-relaxed"
-                  style={{
-                    background: "var(--glass2)", border: "1px solid var(--glass-border)",
-                    color: "var(--text-2)", maxHeight: 220, overflowY: "auto",
-                  }}>
+                  style={{ background: "var(--glass2)", border: "1px solid var(--glass-border)", color: "var(--text-2)", maxHeight: 220, overflowY: "auto" }}>
                   {stripMarkdown(selected.generated_pitch || selected.description || "No pitch provided.")}
                 </div>
                 <div className="field">
@@ -434,10 +342,48 @@ export default function InvestorBrowse() {
                     onChange={e => setAmount(e.target.value)}
                     onKeyDown={e => e.key === "Enter" && invest()} />
                 </div>
-                <button className="btn btn-green w-full" onClick={invest}
-                  disabled={investing || !amount}>
+                <button className="btn btn-green w-full" onClick={invest} disabled={investing || !amount}>
                   {investing ? "Processing…" : `Invest ${amount ? `₹${Number(amount).toLocaleString("en-IN")}` : "Now"}`}
                 </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Investment success modal */}
+      <AnimatePresence>
+        {showSuccess && (
+          <div className="modal-overlay" onClick={() => setShowSuccess(false)}>
+            <motion.div className="modal-sheet glass"
+              initial={{ opacity: 0, scale: 0.85 }} animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              transition={{ type: "spring", stiffness: 400, damping: 28 }}
+              onClick={e => e.stopPropagation()}>
+              <div className="p-8 text-center">
+                <motion.div
+                  initial={{ scale: 0, rotate: -10 }} animate={{ scale: 1, rotate: 0 }}
+                  transition={{ type: "spring", stiffness: 500, damping: 20, delay: 0.1 }}
+                  className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
+                  style={{ background: isFirstInvest ? "var(--amber-pale)" : "var(--green-pale)" }}>
+                  {isFirstInvest
+                    ? <Star className="w-8 h-8" style={{ color: "var(--amber)" }} />
+                    : <Check className="w-8 h-8" style={{ color: "var(--green-dark)" }} />}
+                </motion.div>
+                <h2 className="display text-2xl font-bold mb-2" style={{ color: "var(--text-1)" }}>
+                  {isFirstInvest ? "🎉 First Investment!" : "Investment Submitted!"}
+                </h2>
+                <p className="text-sm mb-6" style={{ color: "var(--text-2)" }}>
+                  {isFirstInvest
+                    ? "Congratulations on your first farm investment! You're helping Indian farmers grow."
+                    : "Your investment has been submitted successfully. The farmer will be notified."}
+                </p>
+                <div className="flex gap-3">
+                  <button className="btn btn-ghost flex-1" onClick={() => setShowSuccess(false)}>Browse More</button>
+                  <button className="btn btn-blue flex-1" onClick={() => { setShowSuccess(false); router.push("/investor/portfolio"); }}>
+                    View Portfolio
+                  </button>
+                </div>
               </div>
             </motion.div>
           </div>
