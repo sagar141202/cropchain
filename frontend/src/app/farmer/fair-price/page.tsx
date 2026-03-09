@@ -10,8 +10,13 @@ import BottomNav from "@/components/layout/BottomNav";
 import toast from "react-hot-toast";
 import { CROPS, INDIAN_STATES } from "@/utils/cropConstants";
 import { formatINR } from "@/utils/formatCurrency";
-import { ShieldCheck, Loader2, MessageSquare, AlertTriangle, CheckCircle } from "lucide-react";
-import { RadialBarChart, RadialBar, ResponsiveContainer } from "recharts";
+import { ShieldCheck, Loader2, MessageSquare, CheckCircle, AlertTriangle, XCircle } from "lucide-react";
+
+const SEV = {
+  Fair: { color: "#16a34a", bg: "#dcfce7", border: "#86efac", badge: "badge-green", Icon: CheckCircle },
+  "Slightly Low": { color: "#d97706", bg: "#fef3c7", border: "#fde68a", badge: "badge-amber", Icon: AlertTriangle },
+  Exploitative: { color: "#dc2626", bg: "#fee2e2", border: "#fca5a5", badge: "badge-red", Icon: XCircle },
+};
 
 export default function FairPricePage() {
   const { setFairPriceResult, lastFairPriceResult } = useFarmerStore();
@@ -21,156 +26,130 @@ export default function FairPricePage() {
   const [script, setScript] = useState("");
   const [form, setForm] = useState({ crop_name: "wheat", market_name: "Local Mandi", state: "haryana", offered_price: "" });
 
-  const handleCheck = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true); setScript("");
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault(); setLoading(true); setScript("");
     try {
-      const result = await mlAPI.checkFairPrice({ ...form, offered_price: parseFloat(form.offered_price) });
-      setFairPriceResult(result);
+      const r = await mlAPI.checkFairPrice({ ...form, offered_price: parseFloat(form.offered_price) });
+      setFairPriceResult(r);
     } catch { toast.error("Analysis failed"); }
     finally { setLoading(false); }
   };
 
-  const handleGetScript = async () => {
+  const getScript = async () => {
     if (!lastFairPriceResult) return;
     setScriptLoading(true);
     try {
-      const res = await groqAPI.priceScript({
+      const r = await groqAPI.priceScript({
         crop_name: lastFairPriceResult.crop_name,
         offered_price: lastFairPriceResult.offered_price,
         modal_price: lastFairPriceResult.modal_price,
         deviation_percent: lastFairPriceResult.deviation_percent,
         language: user?.language || "en",
       });
-      setScript(res.script);
-    } catch { toast.error("Script generation failed"); }
+      setScript(r.script);
+    } catch { toast.error("Script failed"); }
     finally { setScriptLoading(false); }
   };
 
-  const severityConfig = {
-    "Fair": { color: "#00ff88", bg: "rgba(0,255,136,0.08)", border: "rgba(0,255,136,0.3)", icon: CheckCircle, badge: "badge-glow-green" },
-    "Slightly Low": { color: "#f5c842", bg: "rgba(245,200,66,0.08)", border: "rgba(245,200,66,0.3)", icon: AlertTriangle, badge: "badge-glow-gold" },
-    "Exploitative": { color: "#ff6b6b", bg: "rgba(255,107,107,0.08)", border: "rgba(255,107,107,0.3)", icon: AlertTriangle, badge: "badge-glow-red" },
-  };
-
-  const radialData = lastFairPriceResult ? [
-    { name: "deviation", value: Math.min(lastFairPriceResult.deviation_percent, 100), fill: lastFairPriceResult.severity === "Fair" ? "#00ff88" : lastFairPriceResult.severity === "Slightly Low" ? "#f5c842" : "#ff6b6b" }
-  ] : [];
+  const cfg = lastFairPriceResult ? SEV[lastFairPriceResult.severity as keyof typeof SEV] : null;
 
   return (
-    <div className="min-h-screen bg-void pb-20">
+    <div style={{ background: "var(--surface-2)", minHeight: "100vh" }} className="pb-20">
       <Navbar />
-      <div className="max-w-2xl mx-auto px-4 py-6">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 rounded-xl bg-[rgba(245,200,66,0.1)] border border-[rgba(245,200,66,0.3)] flex items-center justify-center">
-              <ShieldCheck className="w-5 h-5 text-[#f5c842]" />
+      <div className="max-w-2xl mx-auto px-4 py-6 page">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "#fef3c7" }}>
+            <ShieldCheck className="w-5 h-5" style={{ color: "#f59e0b" }} />
+          </div>
+          <div>
+            <h1 className="font-display text-2xl" style={{ color: "var(--text-1)", letterSpacing: "-0.02em" }}>Fair Price Radar</h1>
+            <p className="text-xs" style={{ color: "var(--text-3)" }}>IsolationForest · Real-time anomaly detection</p>
+          </div>
+        </div>
+
+        <form onSubmit={submit} className="card p-6 mb-5 space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div><label className="field-label">Crop</label>
+              <select className="field" value={form.crop_name} onChange={e => setForm({ ...form, crop_name: e.target.value })}>
+                {CROPS.map(c => <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>)}
+              </select>
             </div>
-            <div>
-              <h1 className="font-display text-2xl text-[#e8f5e8]">Fair Price Radar</h1>
-              <p className="font-mono text-xs text-[#5a7a5a] tracking-wider">IsolationForest · Real-time detection</p>
+            <div><label className="field-label">State</label>
+              <select className="field" value={form.state} onChange={e => setForm({ ...form, state: e.target.value })}>
+                {INDIAN_STATES.map(s => <option key={s} value={s}>{s.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase())}</option>)}
+              </select>
             </div>
           </div>
+          <div><label className="field-label">Market / Mandi Name</label>
+            <input className="field" placeholder="e.g. Karnal Mandi" value={form.market_name}
+              onChange={e => setForm({ ...form, market_name: e.target.value })} />
+          </div>
+          <div><label className="field-label">Offered Price (₹/quintal)</label>
+            <input type="number" className="field" placeholder="e.g. 1400" value={form.offered_price}
+              onChange={e => setForm({ ...form, offered_price: e.target.value })} required />
+          </div>
+          <button type="submit" disabled={loading} className="btn btn-amber w-full !py-2.5">
+            {loading ? <><Loader2 className="w-4 h-4 animate-spin" />Scanning...</> : "Check Fair Price"}
+          </button>
+        </form>
 
-          <form onSubmit={handleCheck} className="glass p-6 mb-6 space-y-4 scanlines">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="label-dark">Crop</label>
-                <select className="input-dark" value={form.crop_name} onChange={(e) => setForm({ ...form, crop_name: e.target.value })}>
-                  {CROPS.map(c => <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="label-dark">State</label>
-                <select className="input-dark" value={form.state} onChange={(e) => setForm({ ...form, state: e.target.value })}>
-                  {INDIAN_STATES.map(s => <option key={s} value={s}>{s.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase())}</option>)}
-                </select>
-              </div>
-            </div>
-            <div>
-              <label className="label-dark">Market / Mandi Name</label>
-              <input className="input-dark" placeholder="e.g. Karnal Mandi" value={form.market_name}
-                onChange={(e) => setForm({ ...form, market_name: e.target.value })} />
-            </div>
-            <div>
-              <label className="label-dark">Offered Price (₹/quintal)</label>
-              <input type="number" className="input-dark" placeholder="e.g. 1400" value={form.offered_price}
-                onChange={(e) => setForm({ ...form, offered_price: e.target.value })} required />
-            </div>
-            <button type="submit" disabled={loading} className="btn-gold w-full py-3 font-body font-bold">
-              {loading ? <span className="flex items-center justify-center gap-2"><Loader2 className="w-4 h-4 animate-spin" />Scanning market...</span>
-                : "Scan for Anomaly →"}
-            </button>
-          </form>
-
-          {lastFairPriceResult && (() => {
-            const cfg = severityConfig[lastFairPriceResult.severity as keyof typeof severityConfig];
-            const SeverityIcon = cfg.icon;
-            return (
-              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
-                <div className="glass p-6 scanlines" style={{ borderColor: cfg.border }}>
-                  <div className="flex items-center justify-between mb-6">
-                    <div>
-                      <p className="font-mono text-xs text-[#5a7a5a] uppercase tracking-wider mb-1">Analysis Result</p>
-                      <h3 className="font-display text-xl" style={{ color: cfg.color }}>{lastFairPriceResult.severity}</h3>
-                    </div>
-                    <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ background: cfg.bg, border: `1px solid ${cfg.border}` }}>
-                      <SeverityIcon className="w-6 h-6" style={{ color: cfg.color }} />
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-6 mb-6">
-                    {/* Radial gauge */}
-                    <div className="w-28 h-28 flex-shrink-0">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <RadialBarChart cx="50%" cy="50%" innerRadius="60%" outerRadius="80%" data={radialData} startAngle={90} endAngle={-270}>
-                          <RadialBar dataKey="value" cornerRadius={4} background={{ fill: "rgba(255,255,255,0.03)" }} />
-                        </RadialBarChart>
-                      </ResponsiveContainer>
-                      <p className="font-mono text-xs text-center -mt-2" style={{ color: cfg.color }}>
-                        {lastFairPriceResult.deviation_percent.toFixed(1)}% off
-                      </p>
-                    </div>
-
-                    <div className="flex-1 space-y-3">
-                      <div className="flex justify-between items-center p-3 rounded-xl" style={{ background: "rgba(255,107,107,0.05)", border: "1px solid rgba(255,107,107,0.1)" }}>
-                        <span className="font-mono text-xs text-[#5a7a5a] uppercase">Offered</span>
-                        <span className="font-display text-xl text-[#ff6b6b]">{formatINR(lastFairPriceResult.offered_price)}</span>
-                      </div>
-                      <div className="flex justify-between items-center p-3 rounded-xl" style={{ background: "rgba(0,255,136,0.05)", border: "1px solid rgba(0,255,136,0.1)" }}>
-                        <span className="font-mono text-xs text-[#5a7a5a] uppercase">Fair Price</span>
-                        <span className="font-display text-xl text-[#00ff88]">{formatINR(lastFairPriceResult.modal_price)}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="p-4 rounded-xl mb-4" style={{ background: cfg.bg, border: `1px solid ${cfg.border}` }}>
-                    <p className="text-sm leading-relaxed" style={{ color: cfg.color }}>{lastFairPriceResult.recommendation}</p>
-                  </div>
-
-                  {lastFairPriceResult.is_anomaly && (
-                    <button onClick={handleGetScript} disabled={scriptLoading} className="btn-glow w-full py-3">
-                      {scriptLoading
-                        ? <span className="flex items-center justify-center gap-2"><Loader2 className="w-4 h-4 animate-spin" />Generating script...</span>
-                        : <span className="flex items-center justify-center gap-2"><MessageSquare className="w-4 h-4" />Get AI Negotiation Script</span>}
-                    </button>
-                  )}
+        {lastFairPriceResult && cfg && (
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+            <div className="card p-6" style={{ borderColor: cfg.border, borderWidth: 1.5 }}>
+              <div className="flex items-center justify-between mb-5">
+                <div className="flex items-center gap-2">
+                  <cfg.Icon className="w-5 h-5" style={{ color: cfg.color }} />
+                  <span className="font-semibold" style={{ color: cfg.color }}>{lastFairPriceResult.severity}</span>
                 </div>
+                <span className={`badge ${cfg.badge}`}>{lastFairPriceResult.deviation_percent.toFixed(1)}% below market</span>
+              </div>
 
-                {script && (
-                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                    className="glass p-6 scanlines" style={{ borderColor: "rgba(0,255,136,0.2)" }}>
-                    <div className="flex items-center gap-2 mb-4">
-                      <MessageSquare className="w-4 h-4 text-[#00ff88]" />
-                      <span className="font-mono text-xs text-[#5a7a5a] uppercase tracking-wider">Negotiation Script · Groq Llama 3.3 70B</span>
-                    </div>
-                    <p className="text-[#e8f5e8] text-sm leading-relaxed whitespace-pre-wrap">{script}</p>
-                  </motion.div>
-                )}
+              <div className="grid grid-cols-2 gap-3 mb-4">
+                <div className="rounded-xl p-4" style={{ background: "#fee2e2" }}>
+                  <p className="text-xs font-medium mb-1" style={{ color: "#991b1b" }}>Offered</p>
+                  <p className="font-display text-2xl font-semibold num" style={{ color: "#dc2626" }}>
+                    {formatINR(lastFairPriceResult.offered_price)}
+                  </p>
+                  <p className="text-xs mt-0.5" style={{ color: "#991b1b" }}>/quintal</p>
+                </div>
+                <div className="rounded-xl p-4" style={{ background: "#dcfce7" }}>
+                  <p className="text-xs font-medium mb-1" style={{ color: "#14532d" }}>Fair Price</p>
+                  <p className="font-display text-2xl font-semibold num" style={{ color: "#16a34a" }}>
+                    {formatINR(lastFairPriceResult.modal_price)}
+                  </p>
+                  <p className="text-xs mt-0.5" style={{ color: "#14532d" }}>/quintal</p>
+                </div>
+              </div>
+
+              <div className="rounded-xl p-4 mb-4" style={{ background: cfg.bg }}>
+                <p className="text-sm" style={{ color: cfg.color, lineHeight: 1.6 }}>
+                  {lastFairPriceResult.recommendation}
+                </p>
+              </div>
+
+              {lastFairPriceResult.is_anomaly && (
+                <button onClick={getScript} disabled={scriptLoading}
+                  className="btn btn-primary w-full !py-2.5">
+                  {scriptLoading
+                    ? <><Loader2 className="w-4 h-4 animate-spin" />Generating script...</>
+                    : <><MessageSquare className="w-4 h-4" />Get Negotiation Script</>}
+                </button>
+              )}
+            </div>
+
+            {script && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="card p-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <MessageSquare className="w-4 h-4" style={{ color: "var(--green)" }} />
+                  <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-3)" }}>
+                    Negotiation Script · Groq Llama 3.3 70B
+                  </span>
+                </div>
+                <p className="text-sm whitespace-pre-wrap" style={{ color: "var(--text-2)", lineHeight: 1.7 }}>{script}</p>
               </motion.div>
-            );
-          })()}
-        </motion.div>
+            )}
+          </motion.div>
+        )}
       </div>
       <BottomNav />
     </div>

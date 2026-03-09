@@ -1,47 +1,25 @@
 import type { Config } from "tailwindcss";
-
 const config: Config = {
-  content: [
-    "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
-    "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
-    "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
-  ],
+  darkMode: "class",
+  content: ["./src/**/*.{js,ts,jsx,tsx,mdx}"],
   theme: {
     extend: {
-      colors: {
-        void: "#080c08",
-        deep: "#0d140d",
-        "glow-green": "#00ff88",
-        "glow-gold": "#f5c842",
-        "text-dim": "#5a7a5a",
-      },
       fontFamily: {
-        display: ["Instrument Serif", "serif"],
-        body: ["Syne", "sans-serif"],
-        mono: ["JetBrains Mono", "monospace"],
+        sans: ["Plus Jakarta Sans", "sans-serif"],
+        display: ["Fraunces", "serif"],
       },
-      animation: {
-        "pulse-glow": "pulseGlow 2s ease-in-out infinite",
-        "float": "float 6s ease-in-out infinite",
-        "scan": "scan 3s linear infinite",
+      colors: {
+        green: { DEFAULT: "#16a34a", light: "#dcfce7", mid: "#86efac", dark: "#14532d" },
+        surface: { DEFAULT: "#ffffff", 2: "#f8fafc", 3: "#f1f5f9" },
       },
-      keyframes: {
-        pulseGlow: {
-          "0%, 100%": { boxShadow: "0 0 20px rgba(0,255,136,0.3)" },
-          "50%": { boxShadow: "0 0 40px rgba(0,255,136,0.6)" },
-        },
-        float: {
-          "0%, 100%": { transform: "translateY(0)" },
-          "50%": { transform: "translateY(-8px)" },
-        },
-        scan: {
-          "0%": { backgroundPosition: "0 -100%" },
-          "100%": { backgroundPosition: "0 100%" },
-        },
+      borderRadius: { DEFAULT: "14px", sm: "8px", lg: "20px", xl: "28px" },
+      boxShadow: {
+        card: "0 4px 16px rgba(0,0,0,0.06), 0 2px 4px rgba(0,0,0,0.04)",
+        "card-hover": "0 12px 40px rgba(0,0,0,0.1), 0 4px 8px rgba(0,0,0,0.04)",
+        green: "0 4px 12px rgba(22,163,74,0.3)",
       },
     },
   },
   plugins: [],
 };
-
 export default config;

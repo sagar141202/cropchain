@@ -9,17 +9,17 @@ import { TrendingUp, ShieldCheck, MessageSquare, Users, ArrowRight } from "lucid
 import Link from "next/link";
 
 const actions = [
-  { href: "/farmer/yield-predictor", icon: TrendingUp, title: "Yield Predictor", desc: "ML-powered forecast", color: "#00ff88", glow: "rgba(0,255,136,0.15)" },
-  { href: "/farmer/fair-price", icon: ShieldCheck, title: "Fair Price Radar", desc: "Anomaly detection", color: "#f5c842", glow: "rgba(245,200,66,0.15)" },
-  { href: "/farmer/coach", icon: MessageSquare, title: "AI Coach", desc: "Groq negotiation AI", color: "#60a5fa", glow: "rgba(96,165,250,0.15)" },
-  { href: "/farmer/proposals", icon: Users, title: "My Proposals", desc: "Investor pitches", color: "#c084fc", glow: "rgba(192,132,252,0.15)" },
+  { href: "/farmer/yield-predictor", icon: TrendingUp, title: "Yield Predictor", desc: "ML crop forecast", color: "#16a34a", bg: "#dcfce7" },
+  { href: "/farmer/fair-price", icon: ShieldCheck, title: "Fair Price", desc: "Anomaly detection", color: "#f59e0b", bg: "#fef3c7" },
+  { href: "/farmer/coach", icon: MessageSquare, title: "AI Coach", desc: "Groq negotiation", color: "#3b82f6", bg: "#dbeafe" },
+  { href: "/farmer/proposals", icon: Users, title: "Proposals", desc: "Investor pitches", color: "#8b5cf6", bg: "#ede9fe" },
 ];
 
-const PRICES = [
-  { crop: "Wheat", price: "₹2,200", change: "+2.3%", up: true },
-  { crop: "Rice", price: "₹2,800", change: "+1.1%", up: true },
-  { crop: "Cotton", price: "₹6,500", change: "+3.2%", up: true },
-  { crop: "Onion", price: "₹1,500", change: "-1.2%", up: false },
+const prices = [
+  { name: "Wheat", price: "₹2,200", delta: "+2.3%", up: true },
+  { name: "Rice", price: "₹2,800", delta: "+1.1%", up: true },
+  { name: "Cotton", price: "₹6,500", delta: "+3.2%", up: true },
+  { name: "Onion", price: "₹1,500", delta: "−1.2%", up: false },
 ];
 
 export default function FarmerHome() {
@@ -28,75 +28,75 @@ export default function FarmerHome() {
   useEffect(() => { if (!isAuthenticated) router.push("/login"); }, [isAuthenticated]);
 
   return (
-    <div className="min-h-screen bg-void pb-20">
+    <div style={{ background: "var(--surface-2)", minHeight: "100vh" }} className="pb-20">
       <Navbar />
-      <div className="max-w-2xl mx-auto px-4 py-6">
+      <div className="max-w-2xl mx-auto px-4 py-6 page">
 
-        {/* Header card */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-          className="relative overflow-hidden rounded-2xl p-6 mb-6 scanlines"
-          style={{ background: "linear-gradient(135deg, rgba(0,255,136,0.08) 0%, rgba(0,255,136,0.02) 100%)", border: "1px solid rgba(0,255,136,0.2)" }}>
-          <div className="absolute top-0 right-0 w-40 h-40 pointer-events-none"
-            style={{ background: "radial-gradient(circle, rgba(0,255,136,0.1) 0%, transparent 70%)", transform: "translate(30%,-30%)" }} />
-          <p className="font-mono text-xs text-[#5a7a5a] tracking-widest uppercase mb-1">Dashboard</p>
-          <h2 className="font-display text-3xl text-[#e8f5e8] mb-1">
-            Good day, <span className="text-glow-green">{user?.name?.split(" ")[0]}</span>
-          </h2>
-          <p className="font-mono text-xs text-[#5a7a5a]">
-            {user?.state?.replace(/_/g, " ").toUpperCase()} · FARMER
-          </p>
-
-          {/* Mini price tickers */}
-          <div className="flex gap-3 mt-4 overflow-x-auto pb-1">
-            {PRICES.map((p) => (
-              <div key={p.crop} className="flex-shrink-0 bg-[rgba(0,0,0,0.3)] rounded-xl px-3 py-2 border border-[rgba(255,255,255,0.04)]">
-                <p className="font-mono text-[10px] text-[#5a7a5a] uppercase">{p.crop}</p>
-                <p className="font-bold text-sm text-[#e8f5e8]">{p.price}</p>
-                <p className={`font-mono text-[10px] ${p.up ? "text-[#00ff88]" : "text-[#ff6b6b]"}`}>{p.change}</p>
-              </div>
-            ))}
+        {/* Greeting */}
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+          className="rounded-2xl p-5 mb-5 flex items-center justify-between"
+          style={{ background: "var(--green)", boxShadow: "0 8px 32px rgba(22,163,74,0.2)" }}>
+          <div>
+            <p className="text-green-100 text-xs font-medium mb-0.5">
+              {user?.state?.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase())}
+            </p>
+            <h2 className="font-display text-2xl text-white" style={{ letterSpacing: "-0.02em" }}>
+              Hello, {user?.name?.split(" ")[0]} 👋
+            </h2>
+          </div>
+          <div className="text-right">
+            <p className="text-green-200 text-xs">Role</p>
+            <p className="text-white font-semibold capitalize">{user?.role}</p>
           </div>
         </motion.div>
 
-        {/* Action grid */}
-        <p className="font-mono text-xs text-[#5a7a5a] tracking-widest uppercase mb-4">Quick Actions</p>
+        {/* Price strip */}
+        <div className="flex gap-2 overflow-x-auto pb-1 mb-5 scrollbar-hide">
+          {prices.map((p) => (
+            <div key={p.name} className="flex-shrink-0 card px-4 py-3 !rounded-xl">
+              <p className="text-xs font-medium mb-1" style={{ color: "var(--text-3)" }}>{p.name}</p>
+              <p className="font-semibold text-sm" style={{ color: "var(--text-1)" }}>{p.price}</p>
+              <p className="text-xs font-medium" style={{ color: p.up ? "var(--green)" : "var(--red)" }}>{p.delta}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Actions */}
+        <p className="text-xs font-semibold mb-3 uppercase tracking-wider" style={{ color: "var(--text-3)" }}>
+          Quick Actions
+        </p>
         <div className="grid grid-cols-2 gap-3">
           {actions.map((a, i) => (
             <motion.div key={a.href}
-              initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.08 }} whileHover={{ y: -3, scale: 1.01 }}>
+              initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.07 }} whileHover={{ y: -2 }}>
               <Link href={a.href}>
-                <div className="relative overflow-hidden rounded-2xl p-5 group cursor-pointer transition-all"
-                  style={{ background: a.glow, border: `1px solid ${a.color}25` }}>
-                  <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                    style={{ background: `radial-gradient(circle at top right, ${a.glow} 0%, transparent 70%)` }} />
-                  <a.icon className="w-6 h-6 mb-3" style={{ color: a.color }} />
-                  <h4 className="font-body font-bold text-[#e8f5e8] text-sm mb-0.5">{a.title}</h4>
-                  <p className="text-[#5a7a5a] text-xs">{a.desc}</p>
-                  <ArrowRight className="w-3.5 h-3.5 text-[#5a7a5a] mt-3 group-hover:translate-x-1 transition-transform" />
+                <div className="card p-5 hover:shadow-card-hover transition-all duration-200 cursor-pointer">
+                  <div className="w-9 h-9 rounded-xl flex items-center justify-center mb-3"
+                    style={{ background: a.bg }}>
+                    <a.icon className="w-4.5 h-4.5" style={{ width: 18, height: 18, color: a.color }} />
+                  </div>
+                  <h4 className="font-semibold text-sm mb-0.5" style={{ color: "var(--text-1)" }}>{a.title}</h4>
+                  <p className="text-xs" style={{ color: "var(--text-3)" }}>{a.desc}</p>
+                  <ArrowRight className="w-3.5 h-3.5 mt-3" style={{ color: "var(--text-3)" }} />
                 </div>
               </Link>
             </motion.div>
           ))}
         </div>
 
-        {/* System status */}
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}
-          className="mt-6 p-4 rounded-2xl border border-[rgba(0,255,136,0.08)] bg-[rgba(0,255,136,0.02)]">
+        {/* Status */}
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}
+          className="card p-4 mt-4">
           <div className="flex items-center gap-2 mb-3">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#00ff88] animate-pulse" />
-            <span className="font-mono text-xs text-[#5a7a5a] tracking-wider uppercase">System Status</span>
+            <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+            <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-3)" }}>
+              System Status
+            </span>
           </div>
-          <div className="grid grid-cols-3 gap-3">
-            {[
-              { label: "ML Model", status: "Online" },
-              { label: "Weather API", status: "Live" },
-              { label: "Groq AI", status: "Active" },
-            ].map((s) => (
-              <div key={s.label} className="text-center">
-                <p className="font-mono text-[10px] text-[#5a7a5a] uppercase mb-1">{s.label}</p>
-                <span className="badge-glow-green text-[10px]">{s.status}</span>
-              </div>
+          <div className="flex gap-3">
+            {[["ML Model", "green"], ["Weather API", "green"], ["Groq AI", "green"]].map(([s, c]) => (
+              <span key={s} className="badge badge-green text-xs">{s}</span>
             ))}
           </div>
         </motion.div>
