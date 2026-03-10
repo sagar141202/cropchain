@@ -7,6 +7,7 @@ import { investorAPI } from "@/api/investor";
 import Navbar from "@/components/layout/Navbar";
 import BottomNav from "@/components/layout/BottomNav";
 import ROICalculator from "@/components/ui/ROICalculator";
+import ImpactCounter from "@/components/ui/ImpactCounter";
 import PullIndicator from "@/components/ui/PullIndicator";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { formatINR } from "@/utils/formatCurrency";
@@ -18,10 +19,17 @@ export default function InvestorHome() {
   const { user, isAuthenticated, hydrated } = useAuthStore();
   const router = useRouter();
   const [proposals, setProposals] = useState<any[]>([]);
+  const [portfolio, setPortfolio] = useState<any[]>([]);
 
   const fetchData = useCallback(async () => {
-    try { setProposals(await investorAPI.browseProposals()); }
-    catch { toast.error("Failed to load proposals"); }
+    try {
+      const [p, port] = await Promise.all([
+        investorAPI.browseProposals(),
+        investorAPI.getPortfolio().catch(() => []),
+      ]);
+      setProposals(p);
+      setPortfolio(port || []);
+    } catch { toast.error("Failed to load data"); }
   }, []);
 
   useEffect(() => {
@@ -66,6 +74,9 @@ export default function InvestorHome() {
             </div>
           ))}
         </div>
+
+        {/* Impact counter — reads from real portfolio */}
+        <ImpactCounter portfolio={portfolio} />
 
         {/* ROI Calculator */}
         <ROICalculator />

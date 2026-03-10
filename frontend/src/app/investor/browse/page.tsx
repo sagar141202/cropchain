@@ -7,6 +7,7 @@ import { investorAPI } from "@/api/investor";
 import Navbar from "@/components/layout/Navbar";
 import BottomNav from "@/components/layout/BottomNav";
 import EmptyState from "@/components/ui/EmptyState";
+import TrendingCrops from "@/components/ui/TrendingCrops";
 import { RiskBadge, RiskDetailModal } from "@/components/ui/RiskBadge";
 import { computeRisk, type RiskResult } from "@/utils/riskScore";
 import { formatINR } from "@/utils/formatCurrency";
@@ -23,28 +24,29 @@ function stripMarkdown(t: string) {
 }
 
 const CROP_FILTERS = [
-  { value: "all", label: "All Crops" }, { value: "wheat",     label: "Wheat"     },
-  { value: "rice", label: "Rice"     }, { value: "cotton",    label: "Cotton"    },
-  { value: "maize", label: "Maize"   }, { value: "sugarcane", label: "Sugarcane" },
-  { value: "onion", label: "Onion"   }, { value: "soybean",   label: "Soybean"   },
+  { value: "all", label: "All Crops"  }, { value: "wheat",     label: "Wheat"     },
+  { value: "rice", label: "Rice"      }, { value: "cotton",    label: "Cotton"    },
+  { value: "maize", label: "Maize"    }, { value: "sugarcane", label: "Sugarcane" },
+  { value: "onion", label: "Onion"    }, { value: "soybean",   label: "Soybean"   },
 ];
-const ROI_FILTERS = [
+const ROI_FILTERS   = [
   { value: "all", label: "Any ROI" }, { value: "10", label: "10%+" },
-  { value: "15", label: "15%+"    }, { value: "20", label: "20%+" }, { value: "25", label: "25%+" },
+  { value: "15",  label: "15%+"    }, { value: "20", label: "20%+" },
+  { value: "25",  label: "25%+"    },
 ];
-const AREA_FILTERS = [
+const AREA_FILTERS  = [
   { value: "all",   label: "Any Size"    },
   { value: "small", label: "< 5 acres"  },
   { value: "mid",   label: "5–20 acres" },
   { value: "large", label: "20+ acres"  },
 ];
-const SORT_OPTIONS = [
-  { value: "default",    label: "Default"       },
-  { value: "risk-asc",   label: "Lowest Risk"   },
-  { value: "risk-desc",  label: "Highest Risk"  },
-  { value: "roi-desc",   label: "Highest ROI"   },
-  { value: "amount-asc", label: "Lowest Ask"    },
-  { value: "amount-desc",label: "Highest Ask"   },
+const SORT_OPTIONS  = [
+  { value: "default",     label: "Default"      },
+  { value: "risk-asc",    label: "Lowest Risk"  },
+  { value: "risk-desc",   label: "Highest Risk" },
+  { value: "roi-desc",    label: "Highest ROI"  },
+  { value: "amount-asc",  label: "Lowest Ask"   },
+  { value: "amount-desc", label: "Highest Ask"  },
 ];
 
 export default function InvestorBrowse() {
@@ -98,14 +100,11 @@ export default function InvestorBrowse() {
       if (areaFilter === "large" && a < 20)               return false;
       return true;
     });
-
-    // Sort
     if (sortBy === "risk-asc")    list = [...list].sort((a,b) => computeRisk(a).score - computeRisk(b).score);
     if (sortBy === "risk-desc")   list = [...list].sort((a,b) => computeRisk(b).score - computeRisk(a).score);
-    if (sortBy === "roi-desc")    list = [...list].sort((a,b) => (b.roi_percent||0) - (a.roi_percent||0));
-    if (sortBy === "amount-asc")  list = [...list].sort((a,b) => (a.amount_requested||0) - (b.amount_requested||0));
-    if (sortBy === "amount-desc") list = [...list].sort((a,b) => (b.amount_requested||0) - (a.amount_requested||0));
-
+    if (sortBy === "roi-desc")    list = [...list].sort((a,b) => (b.roi_percent||0)-(a.roi_percent||0));
+    if (sortBy === "amount-asc")  list = [...list].sort((a,b) => (a.amount_requested||0)-(b.amount_requested||0));
+    if (sortBy === "amount-desc") list = [...list].sort((a,b) => (b.amount_requested||0)-(a.amount_requested||0));
     return list;
   }, [proposals, search, cropFilter, roiFilter, areaFilter, sortBy]);
 
@@ -143,6 +142,7 @@ export default function InvestorBrowse() {
       <Navbar />
       <div className="max-w-2xl mx-auto px-4 py-6">
 
+        {/* Header */}
         <div className="flex items-center justify-between mb-1">
           <h1 className="display text-2xl font-bold" style={{ color: "var(--text-1)" }}>Browse Proposals</h1>
           <div className="flex items-center gap-1.5">
@@ -153,6 +153,15 @@ export default function InvestorBrowse() {
         <p className="text-xs mb-5" style={{ color: "var(--text-3)" }}>
           {lastUpdated ? `Updated ${lastUpdated.toLocaleTimeString()}` : "Loading…"}
         </p>
+
+        {/* Trending crops — computed from live proposals, tapping sets crop filter */}
+        {!loading && proposals.length > 0 && (
+          <TrendingCrops
+            proposals={proposals}
+            activeCrop={cropFilter}
+            onCropSelect={crop => { setCrop(crop); setShowFilters(false); }}
+          />
+        )}
 
         {/* Search */}
         <div className="relative mb-3">
@@ -186,8 +195,7 @@ export default function InvestorBrowse() {
               border: `1px solid ${showFilters || activeFilterCount > 0 ? "var(--green)" : "var(--glass-border)"}`,
               color: showFilters || activeFilterCount > 0 ? "var(--green-dark)" : "var(--text-2)",
             }}>
-            <SlidersHorizontal className="w-3.5 h-3.5" />
-            Filters
+            <SlidersHorizontal className="w-3.5 h-3.5" /> Filters
             {activeFilterCount > 0 && (
               <span className="w-4 h-4 rounded-full text-white flex items-center justify-center"
                 style={{ background: "var(--green-dark)", fontSize: 9, fontWeight: 800 }}>
@@ -195,35 +203,28 @@ export default function InvestorBrowse() {
               </span>
             )}
           </button>
-
-          {/* Sort dropdown */}
           <div className="relative flex-shrink-0">
             <select value={sortBy} onChange={e => setSortBy(e.target.value)}
               className="rounded-xl pl-7 pr-3 py-2 text-xs font-semibold appearance-none cursor-pointer"
               style={{
                 background: sortBy !== "default" ? "#e0e7ff" : "var(--glass2)",
                 border: `1px solid ${sortBy !== "default" ? "#6366f1" : "var(--glass-border)"}`,
-                color: sortBy !== "default" ? "#4338ca" : "var(--text-2)",
-                outline: "none",
+                color: sortBy !== "default" ? "#4338ca" : "var(--text-2)", outline: "none",
               }}>
-              {SORT_OPTIONS.map(o => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
+              {SORT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
             <ArrowUpDown className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 pointer-events-none"
               style={{ color: sortBy !== "default" ? "#4338ca" : "var(--text-3)" }} />
           </div>
-
-          {/* Active pills */}
           <div className="flex gap-1.5 overflow-x-auto flex-1">
             {cropFilter !== "all" && (
               <span className="badge badge-green flex items-center gap-1 flex-shrink-0 cursor-pointer"
                 onClick={() => setCrop("all")}>
-                {CROP_FILTERS.find(c => c.value === cropFilter)?.label}<X className="w-2.5 h-2.5" /></span>)}
+                {CROP_FILTERS.find(c => c.value === cropFilter)?.label || cropFilter}
+                <X className="w-2.5 h-2.5" /></span>)}
             {roiFilter !== "all" && (
               <span className="badge badge-blue flex items-center gap-1 flex-shrink-0 cursor-pointer"
-                onClick={() => setRoi("all")}>
-                ROI {roiFilter}%+<X className="w-2.5 h-2.5" /></span>)}
+                onClick={() => setRoi("all")}>ROI {roiFilter}%+<X className="w-2.5 h-2.5" /></span>)}
             {areaFilter !== "all" && (
               <span className="badge badge-amber flex items-center gap-1 flex-shrink-0 cursor-pointer"
                 onClick={() => setArea("all")}>
@@ -318,11 +319,11 @@ export default function InvestorBrowse() {
             {filtered.length} proposal{filtered.length !== 1 ? "s" : ""} found
             {(activeFilterCount > 0 || search) && filtered.length !== proposals.length
               && ` (filtered from ${proposals.length})`}
-            {sortBy !== "default" && ` · sorted by ${SORT_OPTIONS.find(o => o.value === sortBy)?.label}`}
+            {sortBy !== "default" && ` · ${SORT_OPTIONS.find(o => o.value === sortBy)?.label}`}
           </p>
         )}
 
-        {/* Cards */}
+        {/* Proposal cards */}
         {loading ? (
           <div className="space-y-3">
             {[1,2,3].map(i => (
@@ -349,7 +350,6 @@ export default function InvestorBrowse() {
                   transition={{ delay: i * 0.04 }}
                   className="glass rounded-2xl p-5 cursor-pointer hover:shadow-xl transition-all"
                   onClick={() => { setSelected(p); setAmount(""); }}>
-
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex-1 pr-3">
                       <h3 className="font-semibold text-sm mb-1" style={{ color: "var(--text-1)" }}>
@@ -365,42 +365,36 @@ export default function InvestorBrowse() {
                         onClick={r => setRiskDetail({ risk: r, proposal: p })} />
                     </div>
                   </div>
-
                   {/* Risk bar */}
                   <div className="flex items-center gap-2 mb-3">
-                    <div style={{
-                      flex: 1, height: 3, borderRadius: 99,
-                      background: "var(--glass-border)", overflow: "hidden",
-                    }}>
+                    <div style={{ flex:1, height:3, borderRadius:99,
+                      background:"var(--glass-border)", overflow:"hidden" }}>
                       <motion.div
-                        initial={{ width: 0 }}
-                        animate={{ width: `${risk.score}%` }}
-                        transition={{ duration: 0.7, ease: "easeOut", delay: i * 0.04 }}
-                        style={{ height: "100%", borderRadius: 99, background: risk.color }}
-                      />
+                        initial={{ width:0 }} animate={{ width:`${risk.score}%` }}
+                        transition={{ duration:0.7, ease:"easeOut", delay: i*0.04 }}
+                        style={{ height:"100%", borderRadius:99, background:risk.color }} />
                     </div>
-                    <span style={{ fontSize: 9, color: risk.color, fontWeight: 700, flexShrink: 0 }}>
+                    <span style={{ fontSize:9, color:risk.color, fontWeight:700, flexShrink:0 }}>
                       {risk.score}/100
                     </span>
                   </div>
-
                   <div className="divider" />
                   <div className="flex items-center gap-4">
                     <div className="flex items-center gap-1">
-                      <IndianRupee className="w-3 h-3" style={{ color: "var(--green-dark)" }} />
-                      <span className="text-xs font-bold" style={{ color: "var(--green-dark)" }}>
+                      <IndianRupee className="w-3 h-3" style={{ color:"var(--green-dark)" }} />
+                      <span className="text-xs font-bold" style={{ color:"var(--green-dark)" }}>
                         {formatINR(p.amount_requested)}
                       </span>
                     </div>
                     <div className="flex items-center gap-1">
-                      <Percent className="w-3 h-3" style={{ color: "var(--text-3)" }} />
-                      <span className="text-xs font-semibold" style={{ color: "var(--text-2)" }}>
+                      <Percent className="w-3 h-3" style={{ color:"var(--text-3)" }} />
+                      <span className="text-xs font-semibold" style={{ color:"var(--text-2)" }}>
                         {p.roi_percent}% ROI
                       </span>
                     </div>
                     <div className="flex items-center gap-1 ml-auto">
-                      <TrendingUp className="w-3 h-3" style={{ color: "var(--text-3)" }} />
-                      <span className="text-xs" style={{ color: "var(--text-3)" }}>
+                      <TrendingUp className="w-3 h-3" style={{ color:"var(--text-3)" }} />
+                      <span className="text-xs" style={{ color:"var(--text-3)" }}>
                         {p.area_acres} acres
                       </span>
                     </div>
@@ -417,14 +411,13 @@ export default function InvestorBrowse() {
         {selected && (
           <div className="modal-overlay" onClick={() => setSelected(null)}>
             <motion.div className="modal-sheet glass"
-              initial={{ opacity: 0, y: 60, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 40, scale: 0.95 }}
-              transition={{ type: "spring", stiffness: 400, damping: 30 }}
+              initial={{ opacity:0, y:60, scale:0.95 }} animate={{ opacity:1, y:0, scale:1 }}
+              exit={{ opacity:0, y:40, scale:0.95 }}
+              transition={{ type:"spring", stiffness:400, damping:30 }}
               onClick={e => e.stopPropagation()}>
               <div className="p-6">
                 <div className="flex items-start justify-between mb-3">
-                  <h2 className="display text-xl font-bold pr-4" style={{ color: "var(--text-1)" }}>
+                  <h2 className="display text-xl font-bold pr-4" style={{ color:"var(--text-1)" }}>
                     {selected.title}
                   </h2>
                   <button onClick={() => setSelected(null)}
@@ -437,23 +430,23 @@ export default function InvestorBrowse() {
                   <span className="badge badge-blue">{selected.roi_percent}% ROI</span>
                   <span className="badge badge-amber">{selected.area_acres} acres</span>
                   <RiskBadge proposal={selected}
-                    onClick={r => { setSelected(null); setRiskDetail({ risk: r, proposal: selected }); }} />
+                    onClick={r => { setSelected(null); setRiskDetail({ risk:r, proposal:selected }); }} />
                 </div>
                 {selected.farmer_name && (
                   <div className="rounded-xl px-3 py-2 mb-4 flex items-center gap-2"
-                    style={{ background: "var(--glass2)", border: "1px solid var(--glass-border)" }}>
-                    <span className="text-xs" style={{ color: "var(--text-3)" }}>Farmer:</span>
-                    <span className="text-xs font-semibold" style={{ color: "var(--text-1)" }}>
+                    style={{ background:"var(--glass2)", border:"1px solid var(--glass-border)" }}>
+                    <span className="text-xs" style={{ color:"var(--text-3)" }}>Farmer:</span>
+                    <span className="text-xs font-semibold" style={{ color:"var(--text-1)" }}>
                       {selected.farmer_name}
                     </span>
                     {selected.farmer_state && (
-                      <span className="text-xs" style={{ color: "var(--text-3)" }}>
+                      <span className="text-xs" style={{ color:"var(--text-3)" }}>
                         · {selected.farmer_state}
                       </span>)}
                   </div>)}
                 <div className="rounded-2xl p-4 mb-4 text-sm leading-relaxed"
-                  style={{ background: "var(--glass2)", border: "1px solid var(--glass-border)",
-                    color: "var(--text-2)", maxHeight: 200, overflowY: "auto" }}>
+                  style={{ background:"var(--glass2)", border:"1px solid var(--glass-border)",
+                    color:"var(--text-2)", maxHeight:200, overflowY:"auto" }}>
                   {stripMarkdown(selected.generated_pitch || selected.description || "No pitch provided.")}
                 </div>
                 <div className="field">
@@ -478,24 +471,24 @@ export default function InvestorBrowse() {
         {showSuccess && (
           <div className="modal-overlay" onClick={() => setShowSuccess(false)}>
             <motion.div className="modal-sheet glass"
-              initial={{ opacity: 0, scale: 0.85 }} animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              transition={{ type: "spring", stiffness: 400, damping: 28 }}
+              initial={{ opacity:0, scale:0.85 }} animate={{ opacity:1, scale:1 }}
+              exit={{ opacity:0, scale:0.9 }}
+              transition={{ type:"spring", stiffness:400, damping:28 }}
               onClick={e => e.stopPropagation()}>
               <div className="p-8 text-center">
                 <motion.div
-                  initial={{ scale: 0, rotate: -10 }} animate={{ scale: 1, rotate: 0 }}
-                  transition={{ type: "spring", stiffness: 500, damping: 20, delay: 0.1 }}
+                  initial={{ scale:0, rotate:-10 }} animate={{ scale:1, rotate:0 }}
+                  transition={{ type:"spring", stiffness:500, damping:20, delay:0.1 }}
                   className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
                   style={{ background: isFirstInvest ? "var(--amber-pale)" : "var(--green-pale)" }}>
                   {isFirstInvest
-                    ? <Star className="w-8 h-8" style={{ color: "var(--amber)" }} />
-                    : <Check className="w-8 h-8" style={{ color: "var(--green-dark)" }} />}
+                    ? <Star className="w-8 h-8" style={{ color:"var(--amber)" }} />
+                    : <Check className="w-8 h-8" style={{ color:"var(--green-dark)" }} />}
                 </motion.div>
-                <h2 className="display text-2xl font-bold mb-2" style={{ color: "var(--text-1)" }}>
+                <h2 className="display text-2xl font-bold mb-2" style={{ color:"var(--text-1)" }}>
                   {isFirstInvest ? "🎉 First Investment!" : "Investment Submitted!"}
                 </h2>
-                <p className="text-sm mb-6" style={{ color: "var(--text-2)" }}>
+                <p className="text-sm mb-6" style={{ color:"var(--text-2)" }}>
                   {isFirstInvest
                     ? "Congratulations on your first farm investment! You're helping Indian farmers grow."
                     : "Your investment has been submitted. The farmer will be notified."}
@@ -518,14 +511,10 @@ export default function InvestorBrowse() {
       {/* Risk detail modal */}
       <AnimatePresence>
         {riskDetail && (
-          <RiskDetailModal
-            risk={riskDetail.risk}
-            proposal={riskDetail.proposal}
-            onClose={() => setRiskDetail(null)}
-          />
+          <RiskDetailModal risk={riskDetail.risk} proposal={riskDetail.proposal}
+            onClose={() => setRiskDetail(null)} />
         )}
       </AnimatePresence>
-
       <BottomNav />
     </div>
   );
