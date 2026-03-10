@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { useAuthStore } from "@/store/authStore";
 import Navbar from "@/components/layout/Navbar";
 import BottomNav from "@/components/layout/BottomNav";
+import WeatherWidget from "@/components/ui/WeatherWidget";
 import PullIndicator from "@/components/ui/PullIndicator";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { TrendingUp, ShieldCheck, MessageSquare, Users, ArrowRight, Leaf } from "lucide-react";
@@ -33,13 +34,14 @@ export default function FarmerHome() {
   }, [hydrated, isAuthenticated]);
 
   const handleRefresh = useCallback(async () => {
-    // Simulate refresh — replace with real API calls if needed
-    await new Promise(r => setTimeout(r, 1000));
+    await new Promise(r => setTimeout(r, 900));
   }, []);
 
   const { pulling, refreshing, pullY } = usePullToRefresh({ onRefresh: handleRefresh });
 
   if (!hydrated) return null;
+
+  const state = user?.state || "maharashtra";
 
   return (
     <div style={{ background: "var(--surface-2)", minHeight: "100vh" }} className="pb-20">
@@ -47,8 +49,9 @@ export default function FarmerHome() {
       <Navbar />
       <div className="max-w-2xl mx-auto px-4 py-6 page">
 
+        {/* Hero card */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-          className="rounded-2xl p-6 mb-6 text-white"
+          className="rounded-2xl p-6 mb-4 text-white"
           style={{ background: "var(--green)" }}>
           <div className="flex items-center gap-3 mb-2">
             <div className="w-9 h-9 rounded-xl flex items-center justify-center"
@@ -61,8 +64,9 @@ export default function FarmerHome() {
             </div>
           </div>
           <p className="text-xs opacity-70 mb-4">
-            {user?.state?.replace(/_/g, " ")?.replace(/\b\w/g, l => l.toUpperCase())} · Farmer
+            {state?.replace(/_/g, " ")?.replace(/\b\w/g, l => l.toUpperCase())} · Farmer
           </p>
+          {/* Mandi price ticker */}
           <div className="flex gap-3 overflow-x-auto pb-1">
             {PRICES.map(p => (
               <div key={p.crop} className="flex-shrink-0 rounded-xl px-3 py-2"
@@ -75,6 +79,10 @@ export default function FarmerHome() {
           </div>
         </motion.div>
 
+        {/* Weather widget — live from Open-Meteo */}
+        <WeatherWidget state={state} />
+
+        {/* Quick actions */}
         <p className="text-xs font-semibold uppercase tracking-wider mb-4"
           style={{ color: "var(--text-3)" }}>Quick Actions</p>
         <div className="grid grid-cols-2 gap-3">
