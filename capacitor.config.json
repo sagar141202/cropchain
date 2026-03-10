@@ -1,0 +1,44 @@
+{
+  "appId": "com.cropchain.app",
+  "appName": "CropChain",
+  "webDir": "frontend/out",
+  "bundledWebRuntime": false,
+  "backgroundColor": "#0f1a0f",
+  "server": {
+    "androidScheme": "https",
+    "cleartext": false,
+    "allowNavigation": []
+  },
+  "android": {
+    "allowMixedContent": false,
+    "captureInput": true,
+    "webContentsDebuggingEnabled": false,
+    "loggingBehavior": "none",
+    "initialFocus": true,
+    "overScrollMode": "never",
+    "backgroundColor": "#0f1a0f",
+    "minWebViewVersion": 85
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 1200,
+      "launchAutoHide": true,
+      "backgroundColor": "#0f1a0f",
+      "androidSplashResourceName": "splash",
+      "androidScaleType": "CENTER_CROP",
+      "showSpinner": false,
+      "splashFullScreen": true,
+      "splashImmersive": true
+    },
+    "StatusBar": {
+      "style": "Dark",
+      "backgroundColor": "#0f1a0f",
+      "overlaysWebView": false
+    },
+    "Keyboard": {
+      "resize": "body",
+      "resizeOnFullScreen": true,
+      "scrollAssist": true
+    }
+  }
+}

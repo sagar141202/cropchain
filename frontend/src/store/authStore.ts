@@ -1,65 +1,76 @@
-import { create } from "zustand";
+// src/store/authStore.ts
+// Zustand store with persist middleware — survives app restarts, backgrounding, kills
+// Token is kept in localStorage (web) and survives Capacitor WebView restarts
 
-interface User {
+import { create } from "zustand";
+import { persist, createJSONStorage } from "zustand/middleware";
+
+export interface User {
   id: string;
   name: string;
   email: string;
   role: "farmer" | "investor";
-  language: string;
-  phone?: string;
-  state?: string;
+  state: string;
+  language?: string;
 }
 
 interface AuthState {
   user: User | null;
-  accessToken: string | null;
+  token: string | null;
   refreshToken: string | null;
   isAuthenticated: boolean;
   hydrated: boolean;
-  setAuth: (user: User, accessToken: string, refreshToken: string) => void;
+
+  // Actions
+  login: (user: User, token: string, refreshToken?: string) => void;
   logout: () => void;
-  hydrate: () => void;
+  setHydrated: () => void;
+  updateToken: (token: string) => void;
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
-  user: null,
-  accessToken: null,
-  refreshToken: null,
-  isAuthenticated: false,
-  hydrated: false,
+export const useAuthStore = create<AuthState>()(
+  persist(
+    (set) => ({
+      user: null,
+      token: null,
+      refreshToken: null,
+      isAuthenticated: false,
+      hydrated: false,
 
-  hydrate: () => {
-    if (typeof window === "undefined") return;
-    try {
-      const token = localStorage.getItem("accessToken");
-      const refresh = localStorage.getItem("refreshToken");
-      const userRaw = localStorage.getItem("user");
-      if (token && userRaw) {
-        const user = JSON.parse(userRaw);
-        set({ user, accessToken: token, refreshToken: refresh, isAuthenticated: true, hydrated: true });
-      } else {
-        set({ hydrated: true });
-      }
-    } catch {
-      set({ hydrated: true });
-    }
-  },
+      login: (user, token, refreshToken) =>
+        set({
+          user,
+          token,
+          refreshToken: refreshToken ?? null,
+          isAuthenticated: true,
+        }),
 
-  setAuth: (user, accessToken, refreshToken) => {
-    if (typeof window !== "undefined") {
-      localStorage.setItem("accessToken", accessToken);
-      localStorage.setItem("refreshToken", refreshToken);
-      localStorage.setItem("user", JSON.stringify(user));
-    }
-    set({ user, accessToken, refreshToken, isAuthenticated: true, hydrated: true });
-  },
+      logout: () =>
+        set({
+          user: null,
+          token: null,
+          refreshToken: null,
+          isAuthenticated: false,
+        }),
 
-  logout: () => {
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("accessToken");
-      localStorage.removeItem("refreshToken");
-      localStorage.removeItem("user");
+      setHydrated: () => set({ hydrated: true }),
+
+      updateToken: (token) => set({ token }),
+    }),
+    {
+      name: "cropchain-auth",           // localStorage key
+      storage: createJSONStorage(() => localStorage),
+      // Only persist these fields — hydrated is runtime-only
+      partialize: (state) => ({
+        user:            state.user,
+        token:           state.token,
+        refreshToken:    state.refreshToken,
+        isAuthenticated: state.isAuthenticated,
+      }),
+      // Called after rehydration from storage — set hydrated flag
+      onRehydrateStorage: () => (state) => {
+        state?.setHydrated();
+      },
     }
-    set({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false });
-  },
-}));
+  )
+);
