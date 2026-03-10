@@ -8,6 +8,7 @@ import BottomNav from "@/components/layout/BottomNav";
 import WeatherWidget from "@/components/ui/WeatherWidget";
 import CropHealthScore from "@/components/ui/CropHealthScore";
 import MandiTicker from "@/components/ui/MandiTicker";
+import SeasonalAdvisory from "@/components/ui/SeasonalAdvisory";
 import PullIndicator from "@/components/ui/PullIndicator";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { TrendingUp, ShieldCheck, MessageSquare, Users, ArrowRight, Leaf } from "lucide-react";
@@ -36,7 +37,7 @@ export default function FarmerHome() {
 
   if (!hydrated) return null;
 
-  const state = user?.state || "maharashtra";
+  const state     = user?.state || "maharashtra";
   const stateName = state.replace(/_/g, " ").replace(/\b\w/g, (l: string) => l.toUpperCase());
 
   return (
@@ -45,10 +46,9 @@ export default function FarmerHome() {
       <Navbar />
       <div className="max-w-2xl mx-auto px-4 py-6 page">
 
-        {/* Hero card */}
+        {/* Hero */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-          className="rounded-2xl p-6 mb-4 text-white"
-          style={{ background: "var(--green)" }}>
+          className="rounded-2xl p-6 mb-4 text-white" style={{ background: "var(--green)" }}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl flex items-center justify-center"
@@ -67,8 +67,11 @@ export default function FarmerHome() {
           </div>
         </motion.div>
 
-        {/* Mandi ticker — state-specific live prices */}
+        {/* Mandi ticker */}
         <MandiTicker state={state} />
+
+        {/* Seasonal advisory — AI generated, cached 7 days */}
+        <SeasonalAdvisory state={state} />
 
         {/* Live weather */}
         <WeatherWidget state={state} />
