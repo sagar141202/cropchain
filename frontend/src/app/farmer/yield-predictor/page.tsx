@@ -47,6 +47,7 @@ export default function YieldPredictor() {
         avg_temp: Number(form.avg_temp),
       });
       setResult(res);
+      localStorage.setItem(`last_yield_${form.state}`, JSON.stringify({ confidence: res.confidence_score ?? res.confidence ?? 70, ts: Date.now() }));
       setShowResult(true);
     } catch (e: any) {
       toast.error(e?.response?.data?.detail?.[0]?.msg || "Prediction failed");

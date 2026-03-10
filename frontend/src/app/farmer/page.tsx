@@ -6,6 +6,7 @@ import { useAuthStore } from "@/store/authStore";
 import Navbar from "@/components/layout/Navbar";
 import BottomNav from "@/components/layout/BottomNav";
 import WeatherWidget from "@/components/ui/WeatherWidget";
+import CropHealthScore from "@/components/ui/CropHealthScore";
 import PullIndicator from "@/components/ui/PullIndicator";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { TrendingUp, ShieldCheck, MessageSquare, Users, ArrowRight, Leaf } from "lucide-react";
@@ -66,7 +67,6 @@ export default function FarmerHome() {
           <p className="text-xs opacity-70 mb-4">
             {state?.replace(/_/g, " ")?.replace(/\b\w/g, l => l.toUpperCase())} · Farmer
           </p>
-          {/* Mandi price ticker */}
           <div className="flex gap-3 overflow-x-auto pb-1">
             {PRICES.map(p => (
               <div key={p.crop} className="flex-shrink-0 rounded-xl px-3 py-2"
@@ -79,8 +79,11 @@ export default function FarmerHome() {
           </div>
         </motion.div>
 
-        {/* Weather widget — live from Open-Meteo */}
+        {/* Live weather */}
         <WeatherWidget state={state} />
+
+        {/* Crop health score */}
+        <CropHealthScore state={state} />
 
         {/* Quick actions */}
         <p className="text-xs font-semibold uppercase tracking-wider mb-4"
