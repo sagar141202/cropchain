@@ -1,9 +1,3 @@
-// src/api/client.ts
-// Axios instance with:
-//   • Auto-attach JWT from persisted store on every request
-//   • 401 → attempt silent refresh → retry original request
-//   • On refresh fail → logout cleanly (no sign-in loop)
-
 import axios from "axios";
 import { useAuthStore } from "@/store/authStore";
 
@@ -13,30 +7,25 @@ const client = axios.create({
   baseURL: BASE_URL,
   timeout: 15000,
   headers: { "Content-Type": "application/json" },
+  withCredentials: false,
 });
 
-// ── Request interceptor: attach current token ────────────────────────────────
 client.interceptors.request.use(
   (config) => {
-    // Read directly from persisted store (works even before React mounts)
     const token =
       useAuthStore.getState().token ??
       (() => {
         try {
           const raw = localStorage.getItem("cropchain-auth");
           return raw ? JSON.parse(raw)?.state?.token : null;
-        } catch {
-          return null;
-        }
+        } catch { return null; }
       })();
-
     if (token) config.headers.Authorization = `Bearer ${token}`;
     return config;
   },
   (error) => Promise.reject(error)
 );
 
-// ── Response interceptor: silent token refresh on 401 ───────────────────────
 let isRefreshing = false;
 let failedQueue: { resolve: (v: any) => void; reject: (e: any) => void }[] = [];
 
@@ -49,22 +38,13 @@ client.interceptors.response.use(
   (response) => response,
   async (error) => {
     const original = error.config;
-
-    // Only attempt refresh on 401, and only once per request
     if (error.response?.status !== 401 || original._retry) {
       return Promise.reject(error);
     }
-
     const { refreshToken, logout, updateToken } = useAuthStore.getState();
-
-    // No refresh token → logout immediately, no redirect loop
-    if (!refreshToken) {
-      logout();
-      return Promise.reject(error);
-    }
+    if (!refreshToken) { logout(); return Promise.reject(error); }
 
     if (isRefreshing) {
-      // Queue concurrent requests until refresh completes
       return new Promise((resolve, reject) => {
         failedQueue.push({ resolve, reject });
       }).then((token) => {
@@ -80,14 +60,13 @@ client.interceptors.response.use(
       const { data } = await axios.post(`${BASE_URL}/auth/refresh`, {
         refresh_token: refreshToken,
       });
-      const newToken: string = data.access_token;
-      updateToken(newToken);
-      processQueue(null, newToken);
-      original.headers.Authorization = `Bearer ${newToken}`;
+      updateToken(data.access_token);
+      processQueue(null, data.access_token);
+      original.headers.Authorization = `Bearer ${data.access_token}`;
       return client(original);
     } catch (refreshError) {
       processQueue(refreshError, null);
-      logout(); // Clear store — user sees login page naturally
+      logout();
       return Promise.reject(refreshError);
     } finally {
       isRefreshing = false;
