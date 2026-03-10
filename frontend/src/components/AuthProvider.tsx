@@ -1,51 +1,34 @@
-// src/components/AuthProvider.tsx
-// Single provider mounted in root layout.
-// Handles:
-//   1. Zustand store rehydration (already done by persist middleware)
-//   2. Capacitor App plugin — re-validate token on resume from background
-//   3. Theme rehydration from localStorage
-//   4. No flicker — renders children immediately; pages gate on `hydrated`
-
 "use client";
 import { useEffect } from "react";
 import { useAuthStore } from "@/store/authStore";
 import { useUIStore } from "@/store/uiStore";
 
-// Dynamic import so Capacitor plugin doesn't break SSR / web builds
-async function getCapacitorApp() {
-  try {
-    const { App } = await import("@capacitor/app");
-    return App;
-  } catch {
-    return null;
-  }
-}
-
 export default function AuthProvider({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, token, logout } = useAuthStore();
   const { initTheme } = useUIStore();
 
   useEffect(() => {
-    // 1. Restore theme (dark/light) from localStorage
+    // Restore theme
     initTheme?.();
 
-    // 2. Capacitor App resume listener — recheck token validity
-    //    This fires every time the user switches back to the app from background
-    getCapacitorApp().then((App) => {
-      if (!App) return; // Running in browser, not native
+    // Capacitor App resume listener — only runs inside the native APK, never on web
+    const isNative =
+      typeof window !== "undefined" &&
+      (window as any)?.Capacitor?.isNativePlatform?.();
 
+    if (!isNative) return;
+
+    // Lazy-load Capacitor App plugin only on native
+    import("@capacitor/app").then(({ App }) => {
       App.addListener("appStateChange", async ({ isActive }) => {
-        if (!isActive) return; // App going to background — nothing to do
+        if (!isActive) return;
 
-        const { token, refreshToken, logout } = useAuthStore.getState();
+        const { token, refreshToken, logout, updateToken } = useAuthStore.getState();
         if (!token) return;
 
-        // Quick sanity check — decode JWT exp without a library
         try {
           const payload = JSON.parse(atob(token.split(".")[1]));
           const expiresIn = payload.exp * 1000 - Date.now();
 
-          // If token expires within 5 minutes, try silent refresh
           if (expiresIn < 5 * 60 * 1000) {
             if (!refreshToken) { logout(); return; }
             const res = await fetch(
@@ -58,16 +41,17 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
             );
             if (res.ok) {
               const data = await res.json();
-              useAuthStore.getState().updateToken(data.access_token);
+              updateToken(data.access_token);
             } else {
               logout();
             }
           }
         } catch {
-          // Malformed token — logout cleanly
           logout();
         }
       });
+    }).catch(() => {
+      // Capacitor not available — silently ignore
     });
   }, []);
 

@@ -17,7 +17,7 @@ export default function Register() {
   const [loading, setLoading] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [pendingRole, setPendingRole] = useState<"farmer" | "investor">("farmer");
-  const { setAuth } = useAuthStore();
+  const { login } = useAuthStore();
   const router = useRouter();
 
   const submit = async () => {
@@ -25,7 +25,7 @@ export default function Register() {
     setLoading(true);
     try {
       const res = await authAPI.register({ ...form, role });
-      setAuth(res.user, res.access_token, res.refresh_token);
+      login(res.user, res.access_token, res.refresh_token);
       toast.success("Account created!");
       // Show onboarding only on first register
       const key = `onboarding_done_${res.user.id}`;

@@ -13,7 +13,7 @@ export default function Login() {
   const [form, setForm] = useState({ email: "", password: "" });
   const [show, setShow] = useState(false);
   const [loading, setLoading] = useState(false);
-  const { setAuth } = useAuthStore();
+  const { login } = useAuthStore();
   const router = useRouter();
 
   const submit = async () => {
@@ -21,7 +21,7 @@ export default function Login() {
     setLoading(true);
     try {
       const res = await authAPI.login(form.email, form.password);
-      setAuth(res.user, res.access_token, res.refresh_token);
+      login(res.user, res.access_token, res.refresh_token);
       toast.success("Welcome back!");
       router.push(res.user.role === "investor" ? "/investor" : "/farmer");
     } catch (e: any) {
