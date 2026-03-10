@@ -6,6 +6,7 @@ import { useAuthStore } from "@/store/authStore";
 import { investorAPI } from "@/api/investor";
 import Navbar from "@/components/layout/Navbar";
 import BottomNav from "@/components/layout/BottomNav";
+import ROICalculator from "@/components/ui/ROICalculator";
 import PullIndicator from "@/components/ui/PullIndicator";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { formatINR } from "@/utils/formatCurrency";
@@ -42,17 +43,21 @@ export default function InvestorHome() {
       <Navbar />
       <div className="max-w-2xl mx-auto px-4 py-6 page">
 
+        {/* Hero */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-          className="rounded-2xl p-6 mb-6 text-white" style={{ background: "var(--green)" }}>
-          <h2 className="font-display font-bold text-xl mb-1">Welcome, {user?.name?.split(" ")[0]}</h2>
+          className="rounded-2xl p-6 mb-4 text-white" style={{ background: "var(--green)" }}>
+          <h2 className="font-display font-bold text-xl mb-1">
+            Welcome, {user?.name?.split(" ")[0]}
+          </h2>
           <p className="text-xs opacity-80">Browse ML-verified farm investment opportunities</p>
         </motion.div>
 
-        <div className="grid grid-cols-3 gap-3 mb-6">
+        {/* Stats */}
+        <div className="grid grid-cols-3 gap-3 mb-4">
           {[
-            { label: "Open Deals", value: proposals.length, icon: Users,      color: "#3b82f6"       },
-            { label: "Avg ROI",    value: "18%",            icon: TrendingUp,  color: "var(--green)"  },
-            { label: "Min Invest", value: "₹1K",            icon: DollarSign,  color: "#f59e0b"       },
+            { label: "Open Deals", value: proposals.length, icon: Users,     color: "#3b82f6"      },
+            { label: "Avg ROI",    value: "18%",            icon: TrendingUp, color: "var(--green)" },
+            { label: "Min Invest", value: "₹1K",            icon: DollarSign, color: "#f59e0b"      },
           ].map(s => (
             <div key={s.label} className="card p-3 text-center">
               <s.icon className="w-4 h-4 mx-auto mb-1" style={{ color: s.color }} />
@@ -62,9 +67,14 @@ export default function InvestorHome() {
           ))}
         </div>
 
+        {/* ROI Calculator */}
+        <ROICalculator />
+
+        {/* Proposals preview */}
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-semibold text-sm" style={{ color: "var(--text-1)" }}>Open Proposals</h3>
-          <Link href="/investor/browse" className="flex items-center gap-1 text-xs" style={{ color: "var(--green)" }}>
+          <Link href="/investor/browse" className="flex items-center gap-1 text-xs"
+            style={{ color: "var(--green)" }}>
             View all <ArrowRight className="w-3 h-3" />
           </Link>
         </div>
@@ -83,7 +93,9 @@ export default function InvestorHome() {
                   <span className="badge badge-green">Open</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <p className="text-sm font-bold" style={{ color: "var(--green)" }}>{formatINR(p.amount_requested)}</p>
+                  <p className="text-sm font-bold" style={{ color: "var(--green)" }}>
+                    {formatINR(p.amount_requested)}
+                  </p>
                   <p className="text-xs" style={{ color: "var(--text-3)" }}>ROI: {p.roi_percent}%</p>
                   <Link href="/investor/browse">
                     <button className="btn btn-primary !py-1.5 !px-3 text-xs">View</button>
