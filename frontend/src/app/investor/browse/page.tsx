@@ -7,14 +7,19 @@ import { investorAPI } from "@/api/investor";
 import Navbar from "@/components/layout/Navbar";
 import BottomNav from "@/components/layout/BottomNav";
 import EmptyState from "@/components/ui/EmptyState";
+import { RiskBadge, RiskDetailModal } from "@/components/ui/RiskBadge";
+import { computeRisk, type RiskResult } from "@/utils/riskScore";
 import { formatINR } from "@/utils/formatCurrency";
-import { X, TrendingUp, IndianRupee, Percent, Search, SlidersHorizontal, Check, Star } from "lucide-react";
 import { burstConfetti, firstInvestmentConfetti } from "@/utils/confetti";
+import {
+  X, TrendingUp, IndianRupee, Percent, Search,
+  SlidersHorizontal, Check, Star, ArrowUpDown,
+} from "lucide-react";
 import toast from "react-hot-toast";
 
 function stripMarkdown(t: string) {
-  return t.replace(/\*\*(.*?)\*\*/g, "$1").replace(/\*(.*?)\*/g, "$1")
-    .replace(/#{1,6}\s*/g, "").replace(/__(.*?)__/g, "$1").replace(/`(.*?)`/g, "$1").trim();
+  return t.replace(/\*\*(.*?)\*\*/g,"$1").replace(/\*(.*?)\*/g,"$1")
+    .replace(/#{1,6}\s*/g,"").replace(/__(.*?)__/g,"$1").replace(/`(.*?)`/g,"$1").trim();
 }
 
 const CROP_FILTERS = [
@@ -25,14 +30,21 @@ const CROP_FILTERS = [
 ];
 const ROI_FILTERS = [
   { value: "all", label: "Any ROI" }, { value: "10", label: "10%+" },
-  { value: "15", label: "15%+"    }, { value: "20", label: "20%+" },
-  { value: "25", label: "25%+"    },
+  { value: "15", label: "15%+"    }, { value: "20", label: "20%+" }, { value: "25", label: "25%+" },
 ];
 const AREA_FILTERS = [
   { value: "all",   label: "Any Size"    },
   { value: "small", label: "< 5 acres"  },
   { value: "mid",   label: "5–20 acres" },
   { value: "large", label: "20+ acres"  },
+];
+const SORT_OPTIONS = [
+  { value: "default",    label: "Default"       },
+  { value: "risk-asc",   label: "Lowest Risk"   },
+  { value: "risk-desc",  label: "Highest Risk"  },
+  { value: "roi-desc",   label: "Highest ROI"   },
+  { value: "amount-asc", label: "Lowest Ask"    },
+  { value: "amount-desc",label: "Highest Ask"   },
 ];
 
 export default function InvestorBrowse() {
@@ -45,12 +57,14 @@ export default function InvestorBrowse() {
   const [cropFilter, setCrop]         = useState("all");
   const [roiFilter, setRoi]           = useState("all");
   const [areaFilter, setArea]         = useState("all");
+  const [sortBy, setSortBy]           = useState("default");
   const [showFilters, setShowFilters] = useState(false);
   const [selected, setSelected]       = useState<any>(null);
   const [amount, setAmount]           = useState("");
   const [investing, setInvesting]     = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [isFirstInvest, setIsFirstInvest] = useState(false);
+  const [riskDetail, setRiskDetail]   = useState<{ risk: RiskResult; proposal: any } | null>(null);
 
   const fetchProposals = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -69,25 +83,45 @@ export default function InvestorBrowse() {
     return () => clearInterval(t);
   }, [hydrated, isAuthenticated, fetchProposals]);
 
-  const filtered = useMemo(() => proposals.filter(p => {
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      if (![p.title, p.description, p.crop_name, p.farmer_name].join(" ").toLowerCase().includes(q)) return false;
-    }
-    if (cropFilter !== "all" && p.crop_name?.toLowerCase() !== cropFilter) return false;
-    if (roiFilter  !== "all" && (p.roi_percent || 0) < Number(roiFilter)) return false;
-    const a = p.area_acres || 0;
-    if (areaFilter === "small" && a >= 5)          return false;
-    if (areaFilter === "mid"   && (a < 5 || a >= 20)) return false;
-    if (areaFilter === "large" && a < 20)           return false;
-    return true;
-  }), [proposals, search, cropFilter, roiFilter, areaFilter]);
+  const filtered = useMemo(() => {
+    let list = proposals.filter(p => {
+      if (search.trim()) {
+        const q = search.toLowerCase();
+        if (![p.title, p.description, p.crop_name, p.farmer_name].join(" ").toLowerCase().includes(q))
+          return false;
+      }
+      if (cropFilter !== "all" && p.crop_name?.toLowerCase() !== cropFilter) return false;
+      if (roiFilter  !== "all" && (p.roi_percent || 0) < Number(roiFilter)) return false;
+      const a = p.area_acres || 0;
+      if (areaFilter === "small" && a >= 5)              return false;
+      if (areaFilter === "mid"   && (a < 5 || a >= 20))  return false;
+      if (areaFilter === "large" && a < 20)               return false;
+      return true;
+    });
 
-  const activeFilterCount = [cropFilter !== "all", roiFilter !== "all", areaFilter !== "all"].filter(Boolean).length;
-  const clearAll = () => { setCrop("all"); setRoi("all"); setArea("all"); setSearch(""); };
+    // Sort
+    if (sortBy === "risk-asc")    list = [...list].sort((a,b) => computeRisk(a).score - computeRisk(b).score);
+    if (sortBy === "risk-desc")   list = [...list].sort((a,b) => computeRisk(b).score - computeRisk(a).score);
+    if (sortBy === "roi-desc")    list = [...list].sort((a,b) => (b.roi_percent||0) - (a.roi_percent||0));
+    if (sortBy === "amount-asc")  list = [...list].sort((a,b) => (a.amount_requested||0) - (b.amount_requested||0));
+    if (sortBy === "amount-desc") list = [...list].sort((a,b) => (b.amount_requested||0) - (a.amount_requested||0));
+
+    return list;
+  }, [proposals, search, cropFilter, roiFilter, areaFilter, sortBy]);
+
+  const activeFilterCount = [
+    cropFilter !== "all", roiFilter !== "all",
+    areaFilter !== "all", sortBy !== "default",
+  ].filter(Boolean).length;
+
+  const clearAll = () => {
+    setCrop("all"); setRoi("all"); setArea("all");
+    setSearch(""); setSortBy("default");
+  };
 
   const invest = async () => {
-    if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) return toast.error("Enter a valid amount");
+    if (!amount || isNaN(Number(amount)) || Number(amount) <= 0)
+      return toast.error("Enter a valid amount");
     setInvesting(true);
     try {
       await investorAPI.invest(selected.id, Number(amount));
@@ -109,7 +143,6 @@ export default function InvestorBrowse() {
       <Navbar />
       <div className="max-w-2xl mx-auto px-4 py-6">
 
-        {/* Header */}
         <div className="flex items-center justify-between mb-1">
           <h1 className="display text-2xl font-bold" style={{ color: "var(--text-1)" }}>Browse Proposals</h1>
           <div className="flex items-center gap-1.5">
@@ -123,7 +156,8 @@ export default function InvestorBrowse() {
 
         {/* Search */}
         <div className="relative mb-3">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: "var(--text-3)" }} />
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4"
+            style={{ color: "var(--text-3)" }} />
           <input value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Search by crop, farmer, title…"
             style={{
@@ -135,23 +169,25 @@ export default function InvestorBrowse() {
             onFocus={e => e.target.style.borderColor = "var(--green)"}
             onBlur={e  => e.target.style.borderColor = "var(--glass-border)"} />
           {search && (
-            <button onClick={() => setSearch("")} className="absolute right-3.5 top-1/2 -translate-y-1/2"
+            <button onClick={() => setSearch("")}
+              className="absolute right-3.5 top-1/2 -translate-y-1/2"
               style={{ color: "var(--text-3)" }}>
               <X className="w-3.5 h-3.5" />
             </button>
           )}
         </div>
 
-        {/* Filter toggle row */}
+        {/* Filter + Sort row */}
         <div className="flex items-center gap-2 mb-3">
           <button onClick={() => setShowFilters(f => !f)}
-            className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition-all"
+            className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition-all flex-shrink-0"
             style={{
               background: showFilters || activeFilterCount > 0 ? "var(--green-pale)" : "var(--glass2)",
               border: `1px solid ${showFilters || activeFilterCount > 0 ? "var(--green)" : "var(--glass-border)"}`,
               color: showFilters || activeFilterCount > 0 ? "var(--green-dark)" : "var(--text-2)",
             }}>
-            <SlidersHorizontal className="w-3.5 h-3.5" /> Filters
+            <SlidersHorizontal className="w-3.5 h-3.5" />
+            Filters
             {activeFilterCount > 0 && (
               <span className="w-4 h-4 rounded-full text-white flex items-center justify-center"
                 style={{ background: "var(--green-dark)", fontSize: 9, fontWeight: 800 }}>
@@ -159,19 +195,42 @@ export default function InvestorBrowse() {
               </span>
             )}
           </button>
+
+          {/* Sort dropdown */}
+          <div className="relative flex-shrink-0">
+            <select value={sortBy} onChange={e => setSortBy(e.target.value)}
+              className="rounded-xl pl-7 pr-3 py-2 text-xs font-semibold appearance-none cursor-pointer"
+              style={{
+                background: sortBy !== "default" ? "#e0e7ff" : "var(--glass2)",
+                border: `1px solid ${sortBy !== "default" ? "#6366f1" : "var(--glass-border)"}`,
+                color: sortBy !== "default" ? "#4338ca" : "var(--text-2)",
+                outline: "none",
+              }}>
+              {SORT_OPTIONS.map(o => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+            <ArrowUpDown className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 pointer-events-none"
+              style={{ color: sortBy !== "default" ? "#4338ca" : "var(--text-3)" }} />
+          </div>
+
+          {/* Active pills */}
           <div className="flex gap-1.5 overflow-x-auto flex-1">
             {cropFilter !== "all" && (
-              <span className="badge badge-green flex items-center gap-1 flex-shrink-0 cursor-pointer" onClick={() => setCrop("all")}>
+              <span className="badge badge-green flex items-center gap-1 flex-shrink-0 cursor-pointer"
+                onClick={() => setCrop("all")}>
                 {CROP_FILTERS.find(c => c.value === cropFilter)?.label}<X className="w-2.5 h-2.5" /></span>)}
             {roiFilter !== "all" && (
-              <span className="badge badge-blue flex items-center gap-1 flex-shrink-0 cursor-pointer" onClick={() => setRoi("all")}>
+              <span className="badge badge-blue flex items-center gap-1 flex-shrink-0 cursor-pointer"
+                onClick={() => setRoi("all")}>
                 ROI {roiFilter}%+<X className="w-2.5 h-2.5" /></span>)}
             {areaFilter !== "all" && (
-              <span className="badge badge-amber flex items-center gap-1 flex-shrink-0 cursor-pointer" onClick={() => setArea("all")}>
+              <span className="badge badge-amber flex items-center gap-1 flex-shrink-0 cursor-pointer"
+                onClick={() => setArea("all")}>
                 {AREA_FILTERS.find(a => a.value === areaFilter)?.label}<X className="w-2.5 h-2.5" /></span>)}
             {(activeFilterCount > 0 || search) && (
-              <button onClick={clearAll} className="text-xs flex-shrink-0 font-semibold" style={{ color: "var(--text-3)" }}>
-                Clear all</button>)}
+              <button onClick={clearAll} className="text-xs flex-shrink-0 font-semibold"
+                style={{ color: "var(--text-3)" }}>Clear all</button>)}
           </div>
         </div>
 
@@ -229,6 +288,25 @@ export default function InvestorBrowse() {
                       </button>))}
                   </div>
                 </div>
+                <div className="divider" />
+                <div>
+                  <p className="field-label mb-2">Sort By Risk</p>
+                  <div className="flex gap-1.5 flex-wrap">
+                    {[
+                      { value: "risk-asc",  label: "🟢 Lowest first"  },
+                      { value: "risk-desc", label: "🔴 Highest first"  },
+                    ].map(o => (
+                      <button key={o.value} onClick={() => setSortBy(o.value)}
+                        className="rounded-xl px-3 py-1.5 text-xs font-semibold transition-all flex items-center gap-1"
+                        style={{
+                          background: sortBy === o.value ? "#fce7f3" : "var(--glass2)",
+                          border: `1px solid ${sortBy === o.value ? "#ec4899" : "var(--glass-border)"}`,
+                          color: sortBy === o.value ? "#9d174d" : "var(--text-2)",
+                        }}>
+                        {sortBy === o.value && <Check className="w-2.5 h-2.5" />}{o.label}
+                      </button>))}
+                  </div>
+                </div>
               </div>
             </motion.div>
           )}
@@ -240,10 +318,11 @@ export default function InvestorBrowse() {
             {filtered.length} proposal{filtered.length !== 1 ? "s" : ""} found
             {(activeFilterCount > 0 || search) && filtered.length !== proposals.length
               && ` (filtered from ${proposals.length})`}
+            {sortBy !== "default" && ` · sorted by ${SORT_OPTIONS.find(o => o.value === sortBy)?.label}`}
           </p>
         )}
 
-        {/* States */}
+        {/* Cards */}
         {loading ? (
           <div className="space-y-3">
             {[1,2,3].map(i => (
@@ -254,53 +333,81 @@ export default function InvestorBrowse() {
               </div>))}
           </div>
         ) : proposals.length === 0 ? (
-          <EmptyState
-            type="investor-proposals"
-            title="No open proposals yet"
-            subtitle="Farmers are preparing their pitches. Check back soon — this page refreshes automatically every 3 seconds."
-          />
+          <EmptyState type="investor-proposals" title="No open proposals yet"
+            subtitle="Farmers are preparing their pitches. Auto-refreshing every 3 seconds." />
         ) : filtered.length === 0 ? (
-          <EmptyState
-            type="no-results"
-            title="No proposals match"
-            subtitle="Try adjusting your search or clearing some filters to see more opportunities."
-            action={{ label: "Clear all filters", onClick: clearAll }}
-          />
+          <EmptyState type="no-results" title="No proposals match"
+            subtitle="Try adjusting your search or clearing some filters."
+            action={{ label: "Clear all filters", onClick: clearAll }} />
         ) : (
           <div className="space-y-3">
-            {filtered.map((p, i) => (
-              <motion.div key={p.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.04 }}
-                className="glass rounded-2xl p-5 cursor-pointer hover:shadow-xl transition-all"
-                onClick={() => { setSelected(p); setAmount(""); }}>
-                <div className="flex items-start justify-between mb-2">
-                  <div className="flex-1 pr-3">
-                    <h3 className="font-semibold text-sm mb-1" style={{ color: "var(--text-1)" }}>{p.title}</h3>
-                    <p className="text-xs line-clamp-2" style={{ color: "var(--text-3)" }}>
-                      {stripMarkdown(p.generated_pitch || p.description || "").slice(0, 120)}…
-                    </p>
+            {filtered.map((p, i) => {
+              const risk = computeRisk(p);
+              return (
+                <motion.div key={p.id}
+                  initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.04 }}
+                  className="glass rounded-2xl p-5 cursor-pointer hover:shadow-xl transition-all"
+                  onClick={() => { setSelected(p); setAmount(""); }}>
+
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex-1 pr-3">
+                      <h3 className="font-semibold text-sm mb-1" style={{ color: "var(--text-1)" }}>
+                        {p.title}
+                      </h3>
+                      <p className="text-xs line-clamp-2" style={{ color: "var(--text-3)" }}>
+                        {stripMarkdown(p.generated_pitch || p.description || "").slice(0, 110)}…
+                      </p>
+                    </div>
+                    <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+                      <span className="badge badge-green">Open</span>
+                      <RiskBadge proposal={p}
+                        onClick={r => setRiskDetail({ risk: r, proposal: p })} />
+                    </div>
                   </div>
-                  <span className="badge badge-green flex-shrink-0">Open</span>
-                </div>
-                {search && p.crop_name?.toLowerCase().includes(search.toLowerCase()) && (
-                  <span className="badge badge-amber mb-2">{p.crop_name}</span>)}
-                <div className="divider" />
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-1">
-                    <IndianRupee className="w-3 h-3" style={{ color: "var(--green-dark)" }} />
-                    <span className="text-xs font-bold" style={{ color: "var(--green-dark)" }}>{formatINR(p.amount_requested)}</span>
+
+                  {/* Risk bar */}
+                  <div className="flex items-center gap-2 mb-3">
+                    <div style={{
+                      flex: 1, height: 3, borderRadius: 99,
+                      background: "var(--glass-border)", overflow: "hidden",
+                    }}>
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: `${risk.score}%` }}
+                        transition={{ duration: 0.7, ease: "easeOut", delay: i * 0.04 }}
+                        style={{ height: "100%", borderRadius: 99, background: risk.color }}
+                      />
+                    </div>
+                    <span style={{ fontSize: 9, color: risk.color, fontWeight: 700, flexShrink: 0 }}>
+                      {risk.score}/100
+                    </span>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <Percent className="w-3 h-3" style={{ color: "var(--text-3)" }} />
-                    <span className="text-xs font-semibold" style={{ color: "var(--text-2)" }}>{p.roi_percent}% ROI</span>
+
+                  <div className="divider" />
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-1">
+                      <IndianRupee className="w-3 h-3" style={{ color: "var(--green-dark)" }} />
+                      <span className="text-xs font-bold" style={{ color: "var(--green-dark)" }}>
+                        {formatINR(p.amount_requested)}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Percent className="w-3 h-3" style={{ color: "var(--text-3)" }} />
+                      <span className="text-xs font-semibold" style={{ color: "var(--text-2)" }}>
+                        {p.roi_percent}% ROI
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1 ml-auto">
+                      <TrendingUp className="w-3 h-3" style={{ color: "var(--text-3)" }} />
+                      <span className="text-xs" style={{ color: "var(--text-3)" }}>
+                        {p.area_acres} acres
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1 ml-auto">
-                    <TrendingUp className="w-3 h-3" style={{ color: "var(--text-3)" }} />
-                    <span className="text-xs" style={{ color: "var(--text-3)" }}>{p.area_acres} acres</span>
-                  </div>
-                </div>
-              </motion.div>
-            ))}
+                </motion.div>
+              );
+            })}
           </div>
         )}
       </div>
@@ -310,13 +417,16 @@ export default function InvestorBrowse() {
         {selected && (
           <div className="modal-overlay" onClick={() => setSelected(null)}>
             <motion.div className="modal-sheet glass"
-              initial={{ opacity: 0, y: 60, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }}
+              initial={{ opacity: 0, y: 60, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 40, scale: 0.95 }}
               transition={{ type: "spring", stiffness: 400, damping: 30 }}
               onClick={e => e.stopPropagation()}>
               <div className="p-6">
                 <div className="flex items-start justify-between mb-3">
-                  <h2 className="display text-xl font-bold pr-4" style={{ color: "var(--text-1)" }}>{selected.title}</h2>
+                  <h2 className="display text-xl font-bold pr-4" style={{ color: "var(--text-1)" }}>
+                    {selected.title}
+                  </h2>
                   <button onClick={() => setSelected(null)}
                     className="btn-ghost w-8 h-8 !p-0 rounded-xl flex items-center justify-center flex-shrink-0">
                     <X className="w-4 h-4" />
@@ -326,16 +436,24 @@ export default function InvestorBrowse() {
                   <span className="badge badge-green">{formatINR(selected.amount_requested)} asking</span>
                   <span className="badge badge-blue">{selected.roi_percent}% ROI</span>
                   <span className="badge badge-amber">{selected.area_acres} acres</span>
+                  <RiskBadge proposal={selected}
+                    onClick={r => { setSelected(null); setRiskDetail({ risk: r, proposal: selected }); }} />
                 </div>
                 {selected.farmer_name && (
                   <div className="rounded-xl px-3 py-2 mb-4 flex items-center gap-2"
                     style={{ background: "var(--glass2)", border: "1px solid var(--glass-border)" }}>
                     <span className="text-xs" style={{ color: "var(--text-3)" }}>Farmer:</span>
-                    <span className="text-xs font-semibold" style={{ color: "var(--text-1)" }}>{selected.farmer_name}</span>
-                    {selected.farmer_state && <span className="text-xs" style={{ color: "var(--text-3)" }}>· {selected.farmer_state}</span>}
+                    <span className="text-xs font-semibold" style={{ color: "var(--text-1)" }}>
+                      {selected.farmer_name}
+                    </span>
+                    {selected.farmer_state && (
+                      <span className="text-xs" style={{ color: "var(--text-3)" }}>
+                        · {selected.farmer_state}
+                      </span>)}
                   </div>)}
                 <div className="rounded-2xl p-4 mb-4 text-sm leading-relaxed"
-                  style={{ background: "var(--glass2)", border: "1px solid var(--glass-border)", color: "var(--text-2)", maxHeight: 220, overflowY: "auto" }}>
+                  style={{ background: "var(--glass2)", border: "1px solid var(--glass-border)",
+                    color: "var(--text-2)", maxHeight: 200, overflowY: "auto" }}>
                   {stripMarkdown(selected.generated_pitch || selected.description || "No pitch provided.")}
                 </div>
                 <div className="field">
@@ -344,8 +462,10 @@ export default function InvestorBrowse() {
                     onChange={e => setAmount(e.target.value)}
                     onKeyDown={e => e.key === "Enter" && invest()} />
                 </div>
-                <button className="btn btn-green w-full" onClick={invest} disabled={investing || !amount}>
-                  {investing ? "Processing…" : `Invest ${amount ? `₹${Number(amount).toLocaleString("en-IN")}` : "Now"}`}
+                <button className="btn btn-green w-full" onClick={invest}
+                  disabled={investing || !amount}>
+                  {investing ? "Processing…"
+                    : `Invest ${amount ? `₹${Number(amount).toLocaleString("en-IN")}` : "Now"}`}
                 </button>
               </div>
             </motion.div>
@@ -381,7 +501,9 @@ export default function InvestorBrowse() {
                     : "Your investment has been submitted. The farmer will be notified."}
                 </p>
                 <div className="flex gap-3">
-                  <button className="btn btn-ghost flex-1" onClick={() => setShowSuccess(false)}>Browse More</button>
+                  <button className="btn btn-ghost flex-1" onClick={() => setShowSuccess(false)}>
+                    Browse More
+                  </button>
                   <button className="btn btn-green flex-1"
                     onClick={() => { setShowSuccess(false); router.push("/investor/portfolio"); }}>
                     View Portfolio
@@ -392,6 +514,18 @@ export default function InvestorBrowse() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Risk detail modal */}
+      <AnimatePresence>
+        {riskDetail && (
+          <RiskDetailModal
+            risk={riskDetail.risk}
+            proposal={riskDetail.proposal}
+            onClose={() => setRiskDetail(null)}
+          />
+        )}
+      </AnimatePresence>
+
       <BottomNav />
     </div>
   );
