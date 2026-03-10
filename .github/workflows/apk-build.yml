@@ -48,6 +48,12 @@ jobs:
       - name: Install Capacitor CLI
         run: npm install -g @capacitor/cli@6
 
+      - name: Install Capacitor core + android in root
+        run: npm install @capacitor/core@6 @capacitor/android@6
+
+      - name: Add android platform
+        run: npx cap add android
+
       - name: Capacitor sync
         run: npx cap sync android
 
