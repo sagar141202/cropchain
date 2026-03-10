@@ -6,8 +6,9 @@ import { useAuthStore } from "@/store/authStore";
 import { investorAPI } from "@/api/investor";
 import Navbar from "@/components/layout/Navbar";
 import BottomNav from "@/components/layout/BottomNav";
+import EmptyState from "@/components/ui/EmptyState";
 import { formatINR } from "@/utils/formatCurrency";
-import { X, TrendingUp, IndianRupee, Percent, FileText, Search, SlidersHorizontal, Check, Star } from "lucide-react";
+import { X, TrendingUp, IndianRupee, Percent, Search, SlidersHorizontal, Check, Star } from "lucide-react";
 import { burstConfetti, firstInvestmentConfetti } from "@/utils/confetti";
 import toast from "react-hot-toast";
 
@@ -17,35 +18,38 @@ function stripMarkdown(t: string) {
 }
 
 const CROP_FILTERS = [
-  { value: "all", label: "All Crops" }, { value: "wheat", label: "Wheat" },
-  { value: "rice", label: "Rice" }, { value: "cotton", label: "Cotton" },
-  { value: "maize", label: "Maize" }, { value: "sugarcane", label: "Sugarcane" },
-  { value: "onion", label: "Onion" }, { value: "soybean", label: "Soybean" },
+  { value: "all", label: "All Crops" }, { value: "wheat",     label: "Wheat"     },
+  { value: "rice", label: "Rice"     }, { value: "cotton",    label: "Cotton"    },
+  { value: "maize", label: "Maize"   }, { value: "sugarcane", label: "Sugarcane" },
+  { value: "onion", label: "Onion"   }, { value: "soybean",   label: "Soybean"   },
 ];
 const ROI_FILTERS = [
   { value: "all", label: "Any ROI" }, { value: "10", label: "10%+" },
-  { value: "15", label: "15%+" }, { value: "20", label: "20%+" }, { value: "25", label: "25%+" },
+  { value: "15", label: "15%+"    }, { value: "20", label: "20%+" },
+  { value: "25", label: "25%+"    },
 ];
 const AREA_FILTERS = [
-  { value: "all", label: "Any Size" }, { value: "small", label: "< 5 acres" },
-  { value: "mid", label: "5–20 acres" }, { value: "large", label: "20+ acres" },
+  { value: "all",   label: "Any Size"    },
+  { value: "small", label: "< 5 acres"  },
+  { value: "mid",   label: "5–20 acres" },
+  { value: "large", label: "20+ acres"  },
 ];
 
 export default function InvestorBrowse() {
   const { user, isAuthenticated, hydrated } = useAuthStore();
   const router = useRouter();
-  const [proposals, setProposals]       = useState<any[]>([]);
-  const [loading, setLoading]           = useState(true);
-  const [lastUpdated, setLastUpdated]   = useState<Date | null>(null);
-  const [search, setSearch]             = useState("");
-  const [cropFilter, setCrop]           = useState("all");
-  const [roiFilter, setRoi]             = useState("all");
-  const [areaFilter, setArea]           = useState("all");
-  const [showFilters, setShowFilters]   = useState(false);
-  const [selected, setSelected]         = useState<any>(null);
-  const [amount, setAmount]             = useState("");
-  const [investing, setInvesting]       = useState(false);
-  const [showSuccess, setShowSuccess]   = useState(false);
+  const [proposals, setProposals]     = useState<any[]>([]);
+  const [loading, setLoading]         = useState(true);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [search, setSearch]           = useState("");
+  const [cropFilter, setCrop]         = useState("all");
+  const [roiFilter, setRoi]           = useState("all");
+  const [areaFilter, setArea]         = useState("all");
+  const [showFilters, setShowFilters] = useState(false);
+  const [selected, setSelected]       = useState<any>(null);
+  const [amount, setAmount]           = useState("");
+  const [investing, setInvesting]     = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
   const [isFirstInvest, setIsFirstInvest] = useState(false);
 
   const fetchProposals = useCallback(async (silent = false) => {
@@ -68,15 +72,14 @@ export default function InvestorBrowse() {
   const filtered = useMemo(() => proposals.filter(p => {
     if (search.trim()) {
       const q = search.toLowerCase();
-      const hay = [p.title, p.description, p.crop_name, p.farmer_name].join(" ").toLowerCase();
-      if (!hay.includes(q)) return false;
+      if (![p.title, p.description, p.crop_name, p.farmer_name].join(" ").toLowerCase().includes(q)) return false;
     }
     if (cropFilter !== "all" && p.crop_name?.toLowerCase() !== cropFilter) return false;
     if (roiFilter  !== "all" && (p.roi_percent || 0) < Number(roiFilter)) return false;
-    const acres = p.area_acres || 0;
-    if (areaFilter === "small" && acres >= 5)  return false;
-    if (areaFilter === "mid"   && (acres < 5 || acres >= 20)) return false;
-    if (areaFilter === "large" && acres < 20)  return false;
+    const a = p.area_acres || 0;
+    if (areaFilter === "small" && a >= 5)          return false;
+    if (areaFilter === "mid"   && (a < 5 || a >= 20)) return false;
+    if (areaFilter === "large" && a < 20)           return false;
     return true;
   }), [proposals, search, cropFilter, roiFilter, areaFilter]);
 
@@ -88,17 +91,11 @@ export default function InvestorBrowse() {
     setInvesting(true);
     try {
       await investorAPI.invest(selected.id, Number(amount));
-
-      const firstKey = `first_investment_${user?.id}`;
-      const isFirst = !localStorage.getItem(firstKey);
+      const key = `first_investment_${user?.id}`;
+      const isFirst = !localStorage.getItem(key);
       setIsFirstInvest(isFirst);
-      if (isFirst) {
-        localStorage.setItem(firstKey, "true");
-        setTimeout(firstInvestmentConfetti, 300);
-      } else {
-        setTimeout(burstConfetti, 300);
-      }
-
+      if (isFirst) { localStorage.setItem(key, "true"); setTimeout(firstInvestmentConfetti, 300); }
+      else { setTimeout(burstConfetti, 300); }
       setSelected(null); setAmount(""); setShowSuccess(true);
       fetchProposals(true);
     } catch (e: any) { toast.error(e?.response?.data?.detail || "Investment failed"); }
@@ -111,6 +108,8 @@ export default function InvestorBrowse() {
     <div className="min-h-screen pb-24 page">
       <Navbar />
       <div className="max-w-2xl mx-auto px-4 py-6">
+
+        {/* Header */}
         <div className="flex items-center justify-between mb-1">
           <h1 className="display text-2xl font-bold" style={{ color: "var(--text-1)" }}>Browse Proposals</h1>
           <div className="flex items-center gap-1.5">
@@ -143,7 +142,7 @@ export default function InvestorBrowse() {
           )}
         </div>
 
-        {/* Filter toggle */}
+        {/* Filter toggle row */}
         <div className="flex items-center gap-2 mb-3">
           <button onClick={() => setShowFilters(f => !f)}
             className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition-all"
@@ -152,8 +151,7 @@ export default function InvestorBrowse() {
               border: `1px solid ${showFilters || activeFilterCount > 0 ? "var(--green)" : "var(--glass-border)"}`,
               color: showFilters || activeFilterCount > 0 ? "var(--green-dark)" : "var(--text-2)",
             }}>
-            <SlidersHorizontal className="w-3.5 h-3.5" />
-            Filters
+            <SlidersHorizontal className="w-3.5 h-3.5" /> Filters
             {activeFilterCount > 0 && (
               <span className="w-4 h-4 rounded-full text-white flex items-center justify-center"
                 style={{ background: "var(--green-dark)", fontSize: 9, fontWeight: 800 }}>
@@ -236,12 +234,16 @@ export default function InvestorBrowse() {
           )}
         </AnimatePresence>
 
-        <p className="text-xs mb-3 font-medium" style={{ color: "var(--text-3)" }}>
-          {loading ? "Loading…" : `${filtered.length} proposal${filtered.length !== 1 ? "s" : ""} found`}
-          {(activeFilterCount > 0 || search) && filtered.length !== proposals.length && ` (filtered from ${proposals.length})`}
-        </p>
+        {/* Results count */}
+        {!loading && proposals.length > 0 && (
+          <p className="text-xs mb-3 font-medium" style={{ color: "var(--text-3)" }}>
+            {filtered.length} proposal{filtered.length !== 1 ? "s" : ""} found
+            {(activeFilterCount > 0 || search) && filtered.length !== proposals.length
+              && ` (filtered from ${proposals.length})`}
+          </p>
+        )}
 
-        {/* Cards */}
+        {/* States */}
         {loading ? (
           <div className="space-y-3">
             {[1,2,3].map(i => (
@@ -251,18 +253,19 @@ export default function InvestorBrowse() {
                 <div className="h-8 rounded-xl" style={{ background: "var(--glass2)" }} />
               </div>))}
           </div>
+        ) : proposals.length === 0 ? (
+          <EmptyState
+            type="investor-proposals"
+            title="No open proposals yet"
+            subtitle="Farmers are preparing their pitches. Check back soon — this page refreshes automatically every 3 seconds."
+          />
         ) : filtered.length === 0 ? (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass rounded-2xl p-12 text-center">
-            <FileText className="w-10 h-10 mx-auto mb-3" style={{ color: "var(--text-3)" }} />
-            <p className="font-medium mb-1" style={{ color: "var(--text-2)" }}>
-              {proposals.length === 0 ? "No open proposals yet" : "No proposals match your filters"}
-            </p>
-            <p className="text-xs mb-4" style={{ color: "var(--text-3)" }}>
-              {proposals.length === 0 ? "Auto-refreshing every 3s" : "Try adjusting your search or filters"}
-            </p>
-            {(activeFilterCount > 0 || search) && (
-              <button onClick={clearAll} className="btn btn-ghost text-xs">Clear filters</button>)}
-          </motion.div>
+          <EmptyState
+            type="no-results"
+            title="No proposals match"
+            subtitle="Try adjusting your search or clearing some filters to see more opportunities."
+            action={{ label: "Clear all filters", onClick: clearAll }}
+          />
         ) : (
           <div className="space-y-3">
             {filtered.map((p, i) => (
@@ -329,8 +332,7 @@ export default function InvestorBrowse() {
                     style={{ background: "var(--glass2)", border: "1px solid var(--glass-border)" }}>
                     <span className="text-xs" style={{ color: "var(--text-3)" }}>Farmer:</span>
                     <span className="text-xs font-semibold" style={{ color: "var(--text-1)" }}>{selected.farmer_name}</span>
-                    {selected.farmer_state && (
-                      <span className="text-xs" style={{ color: "var(--text-3)" }}>· {selected.farmer_state}</span>)}
+                    {selected.farmer_state && <span className="text-xs" style={{ color: "var(--text-3)" }}>· {selected.farmer_state}</span>}
                   </div>)}
                 <div className="rounded-2xl p-4 mb-4 text-sm leading-relaxed"
                   style={{ background: "var(--glass2)", border: "1px solid var(--glass-border)", color: "var(--text-2)", maxHeight: 220, overflowY: "auto" }}>
@@ -351,7 +353,7 @@ export default function InvestorBrowse() {
         )}
       </AnimatePresence>
 
-      {/* Investment success modal */}
+      {/* Success modal */}
       <AnimatePresence>
         {showSuccess && (
           <div className="modal-overlay" onClick={() => setShowSuccess(false)}>
@@ -376,11 +378,12 @@ export default function InvestorBrowse() {
                 <p className="text-sm mb-6" style={{ color: "var(--text-2)" }}>
                   {isFirstInvest
                     ? "Congratulations on your first farm investment! You're helping Indian farmers grow."
-                    : "Your investment has been submitted successfully. The farmer will be notified."}
+                    : "Your investment has been submitted. The farmer will be notified."}
                 </p>
                 <div className="flex gap-3">
                   <button className="btn btn-ghost flex-1" onClick={() => setShowSuccess(false)}>Browse More</button>
-                  <button className="btn btn-blue flex-1" onClick={() => { setShowSuccess(false); router.push("/investor/portfolio"); }}>
+                  <button className="btn btn-green flex-1"
+                    onClick={() => { setShowSuccess(false); router.push("/investor/portfolio"); }}>
                     View Portfolio
                   </button>
                 </div>
