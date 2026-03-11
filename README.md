@@ -4,7 +4,7 @@ A production-grade, full-stack platform built for Indian farmers — ML yield pr
 
 Built as a portfolio project demonstrating full-stack engineering, ML integration, LLM integration, DevOps, and mobile delivery.
 
-[![Live Demo](https://img.shields.io/badge/🌐_LIVE_DEMO-cropchain.vercel.app-22c55e?style=flat-square)](https://cropchain.vercel.app)
+[![Live Demo](https://img.shields.io/badge/🌐_LIVE_DEMO-cropchain.vercel.app-22c55e?style=flat-square)](https://cropchain-nine.vercel.app/)
 [![API Docs](https://img.shields.io/badge/📄_API_DOCS-Swagger_UI-blue?style=flat-square)](https://cropchain-backend-production.up.railway.app/docs)
 [![Android APK](https://img.shields.io/badge/📱_ANDROID-Download_APK-orange?style=flat-square)](#-android-app--apk-download)
 
